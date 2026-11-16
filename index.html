@@ -1,0 +1,1485 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1d9be6">
+<meta name="description" content="Mi colección personal de libros y cómics">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<title>Estante · Mi colección</title>
+<style>
+:root{
+  --ink:#0b3352; --ink2:#2f5675; --muted:#5f7f97;
+  --glass:rgba(255,255,255,.42); --glass-strong:rgba(255,255,255,.72);
+  --edge:rgba(255,255,255,.85); --shadow:0 10px 30px rgba(0,58,110,.22);
+  --aqua1:#7fe0ff; --aqua2:#119ae6; --aqua3:#0a6fb8;
+  --lime1:#c6f57a; --lime2:#5cc12e; --lime3:#2f8a14;
+  --read:#2f9e57; --reading:#e3a21a; --pending:#3d7fd0;
+  --danger:#d9483b;
+  --r:18px;
+  --safe-b:env(safe-area-inset-bottom,0px);
+  --safe-t:env(safe-area-inset-top,0px);
+  font-family:"Segoe UI","Frutiger","Myriad Pro","Helvetica Neue",Roboto,system-ui,sans-serif;
+  color:var(--ink);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;min-height:100%}
+html{background:#bfe9ff}
+body{min-height:100vh}
+.scenery{
+  background:
+    radial-gradient(1200px 500px at 85% -10%, rgba(255,255,255,.85), transparent 60%),
+    radial-gradient(800px 400px at 0% 10%, rgba(180,240,255,.7), transparent 60%),
+    linear-gradient(180deg,#0b8fe0 0%,#45b8f2 28%,#a6e2ff 58%,#e6f8ff 78%,#f4fff0 100%);
+}
+body{overflow-x:hidden}
+/* ---------- Decoración Frutiger Aero ---------- */
+.scenery{position:fixed;inset:0;pointer-events:none;z-index:0;overflow:hidden}
+.scenery .hill{position:absolute;left:-5%;width:110%;bottom:-2px;height:28vh;min-height:170px}
+.scenery .flare{position:absolute;top:-120px;right:-80px;width:420px;height:420px;border-radius:50%;
+  background:radial-gradient(circle,rgba(255,255,255,.95) 0,rgba(255,255,255,.35) 25%,transparent 62%)}
+.bubble{position:absolute;bottom:-80px;border-radius:50%;
+  background:radial-gradient(circle at 30% 28%,rgba(255,255,255,.95) 0 8%,rgba(255,255,255,.25) 22%,rgba(160,230,255,.18) 55%,rgba(255,255,255,.55) 100%);
+  border:1px solid rgba(255,255,255,.7);box-shadow:inset -4px -6px 12px rgba(0,120,200,.12);
+  animation:rise linear infinite}
+@keyframes rise{0%{transform:translateY(0) translateX(0)}50%{transform:translateY(-55vh) translateX(18px)}100%{transform:translateY(-115vh) translateX(-10px)}}
+@media (prefers-reduced-motion:reduce){.bubble{animation:none;display:none}}
+
+/* ---------- Layout ---------- */
+.app{position:relative;z-index:1;display:flex;min-height:100vh}
+.side{display:none}
+main{flex:1;min-width:0;padding:calc(12px + var(--safe-t)) 14px calc(96px + var(--safe-b))}
+.topbar{display:flex;align-items:center;gap:10px;margin:2px 2px 12px}
+.brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:21px;letter-spacing:.2px;color:#fff;
+  text-shadow:0 1px 0 rgba(0,60,120,.35),0 0 18px rgba(255,255,255,.5)}
+.brand img{width:34px;height:34px;filter:drop-shadow(0 3px 6px rgba(0,60,120,.35))}
+.topbar .spacer{flex:1}
+h2.title{margin:4px 2px 12px;font-size:22px;color:#fff;text-shadow:0 1px 2px rgba(0,60,120,.45)}
+h3{margin:0 0 10px;font-size:16px;color:var(--ink)}
+
+.glass{position:relative;background:var(--glass);border:1px solid var(--edge);border-radius:var(--r);
+  box-shadow:var(--shadow),inset 0 1px 0 rgba(255,255,255,.9);
+  -webkit-backdrop-filter:blur(16px) saturate(1.5);backdrop-filter:blur(16px) saturate(1.5)}
+.glass::before{content:"";position:absolute;left:1px;right:1px;top:1px;height:46%;border-radius:calc(var(--r) - 1px) calc(var(--r) - 1px) 40% 40%/calc(var(--r) - 1px) calc(var(--r) - 1px) 18px 18px;
+  background:linear-gradient(180deg,rgba(255,255,255,.65),rgba(255,255,255,.05));pointer-events:none}
+.glass > *{position:relative}
+.pad{padding:14px}
+.stack{display:flex;flex-direction:column;gap:12px}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.grow{flex:1;min-width:0}
+.muted{color:var(--muted)}
+.small{font-size:13px}
+.hidden{display:none!important}
+
+/* ---------- Botones aqua ---------- */
+.btn{appearance:none;border:1px solid rgba(0,70,130,.35);border-radius:999px;padding:9px 16px;font:inherit;font-weight:600;font-size:14.5px;
+  color:#fff;cursor:pointer;position:relative;overflow:hidden;white-space:nowrap;
+  background:linear-gradient(180deg,var(--aqua1) 0%,var(--aqua2) 52%,var(--aqua3) 100%);
+  text-shadow:0 1px 1px rgba(0,50,100,.5);
+  box-shadow:0 3px 8px rgba(0,80,150,.35),inset 0 1px 0 rgba(255,255,255,.8),inset 0 -2px 6px rgba(0,60,120,.35);
+  transition:transform .08s, filter .15s; display:inline-flex;align-items:center;justify-content:center;gap:7px}
+.btn::after{content:"";position:absolute;left:6%;right:6%;top:1px;height:48%;border-radius:999px;
+  background:linear-gradient(180deg,rgba(255,255,255,.85),rgba(255,255,255,.12));pointer-events:none}
+.btn:hover{filter:brightness(1.07)} .btn:active{transform:scale(.97)}
+.btn.lime{background:linear-gradient(180deg,var(--lime1) 0%,var(--lime2) 52%,var(--lime3) 100%);border-color:rgba(30,90,10,.4)}
+.btn.ghost{background:linear-gradient(180deg,rgba(255,255,255,.95),rgba(225,242,255,.85));color:var(--ink);text-shadow:none;border-color:rgba(0,90,160,.25);
+  box-shadow:0 2px 6px rgba(0,80,150,.18),inset 0 1px 0 #fff}
+.btn.danger{background:linear-gradient(180deg,#ffb3a8 0%,#e4543f 52%,#b8301e 100%);border-color:rgba(120,20,10,.4)}
+.btn.sm{padding:6px 12px;font-size:13px}
+.btn.icon{padding:8px;width:40px;height:40px}
+.btn svg{width:18px;height:18px;flex:none}
+.btn[disabled]{opacity:.55;pointer-events:none}
+
+/* ---------- Inputs ---------- */
+input,select,textarea{font:inherit;color:var(--ink);background:rgba(255,255,255,.88);border:1px solid rgba(0,90,160,.28);border-radius:12px;padding:9px 12px;width:100%;
+  box-shadow:inset 0 2px 4px rgba(0,60,120,.08);outline:none}
+input:focus,select:focus,textarea:focus{border-color:#1da1f2;box-shadow:0 0 0 3px rgba(29,161,242,.25),inset 0 2px 4px rgba(0,60,120,.08)}
+textarea{min-height:76px;resize:vertical}
+label.f{display:flex;flex-direction:column;gap:4px;font-size:12.5px;font-weight:600;color:var(--ink2)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.span2{grid-column:span 2}
+.search{position:relative}
+.search input{padding-left:38px;border-radius:999px;background:rgba(255,255,255,.92)}
+.search svg{position:absolute;left:12px;top:50%;transform:translateY(-50%);width:18px;height:18px;color:var(--muted)}
+
+/* chips */
+.chips{display:flex;gap:8px;overflow-x:auto;padding:2px 2px 6px;scrollbar-width:none}
+.chips::-webkit-scrollbar{display:none}
+.chip{flex:none;border:1px solid rgba(255,255,255,.9);border-radius:999px;padding:6px 13px;font-size:13.5px;font-weight:600;cursor:pointer;color:var(--ink);
+  background:linear-gradient(180deg,rgba(255,255,255,.85),rgba(210,238,255,.6));box-shadow:0 2px 6px rgba(0,80,150,.15);white-space:nowrap}
+.chip.on{color:#fff;text-shadow:0 1px 1px rgba(0,50,100,.5);background:linear-gradient(180deg,var(--aqua1),var(--aqua2) 55%,var(--aqua3));border-color:rgba(0,70,130,.35)}
+.chip .dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px;vertical-align:1px;box-shadow:inset 0 1px 1px rgba(255,255,255,.7)}
+.seg{display:inline-flex;border-radius:999px;padding:3px;background:rgba(255,255,255,.6);border:1px solid rgba(0,90,160,.2);gap:2px}
+.seg button{border:0;background:transparent;font:inherit;font-size:13.5px;font-weight:600;padding:7px 12px;border-radius:999px;color:var(--ink2);cursor:pointer}
+.seg button.on{color:#fff;background:linear-gradient(180deg,var(--aqua1),var(--aqua2) 55%,var(--aqua3));text-shadow:0 1px 1px rgba(0,50,100,.5)}
+.seg button.on[data-v="leido"]{background:linear-gradient(180deg,#a8ecb9,var(--read) 60%,#1f7a40)}
+.seg button.on[data-v="leyendo"]{background:linear-gradient(180deg,#ffe39a,var(--reading) 60%,#b07800)}
+
+/* ---------- Colección ---------- */
+.toolbar{display:flex;gap:8px;align-items:center;margin-bottom:10px}
+.toolbar .search{flex:1}
+.count{color:#fff;font-weight:600;text-shadow:0 1px 2px rgba(0,60,120,.5);margin:2px 4px 10px;font-size:14px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(108px,1fr));gap:14px 12px}
+.card{cursor:pointer;display:flex;flex-direction:column;gap:6px;min-width:0}
+.cover{position:relative;aspect-ratio:2/3;border-radius:10px;overflow:hidden;background:#cfe9fb;
+  box-shadow:0 6px 14px rgba(0,50,100,.3),0 0 0 1px rgba(255,255,255,.6)}
+.cover img{width:100%;height:100%;object-fit:cover;display:block}
+.cover::after{content:"";position:absolute;inset:0;background:linear-gradient(120deg,rgba(255,255,255,.35) 0,rgba(255,255,255,0) 38%);pointer-events:none}
+.cover .ph{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:center;align-items:center;padding:10px;text-align:center;color:#fff;
+  font-weight:700;font-size:13px;line-height:1.2;text-shadow:0 1px 2px rgba(0,0,0,.35)}
+.cover .ph small{font-weight:500;opacity:.9;margin-top:6px;font-size:11px}
+.badge{position:absolute;top:6px;left:6px;z-index:2;font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:999px;color:#fff;
+  background:rgba(0,40,80,.55);-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px)}
+.badge.warn{background:rgba(214,120,0,.9)}
+.readbtn{position:absolute;right:6px;bottom:6px;z-index:2;width:32px;height:32px;border-radius:50%;border:1px solid rgba(255,255,255,.9);cursor:pointer;
+  background:radial-gradient(circle at 35% 30%,#fff 0 12%,rgba(255,255,255,.55) 30%,rgba(120,150,175,.75) 100%);display:flex;align-items:center;justify-content:center;
+  box-shadow:0 2px 6px rgba(0,0,0,.3)}
+.readbtn svg{width:17px;height:17px;color:#fff;filter:drop-shadow(0 1px 1px rgba(0,0,0,.4))}
+.readbtn.leido{background:radial-gradient(circle at 35% 30%,#fff 0 10%,#8ee6a6 28%,var(--read) 70%,#1d6e3a 100%)}
+.readbtn.leyendo{background:radial-gradient(circle at 35% 30%,#fff 0 10%,#ffe08a 28%,var(--reading) 70%,#a06c00 100%)}
+.card .t{font-weight:700;font-size:13.5px;line-height:1.2;color:var(--ink);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.card .a{font-size:12px;color:var(--ink2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cardtext{background:rgba(255,255,255,.55);border-radius:10px;padding:6px 8px;border:1px solid rgba(255,255,255,.8)}
+.list{display:flex;flex-direction:column;gap:8px}
+.lrow{display:flex;gap:12px;align-items:center;padding:8px;cursor:pointer}
+.lrow .cover{width:52px;flex:none;border-radius:7px}
+.lrow .cover .ph{font-size:8px;padding:3px}
+.lrow .meta{flex:1;min-width:0}
+.lrow .meta .t{font-weight:700;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lrow .meta .s{font-size:12.5px;color:var(--ink2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lrow .readbtn{position:static;flex:none}
+.empty{text-align:center;padding:36px 18px}
+.empty .big{font-size:46px}
+.filters{margin-bottom:12px}
+.filters .grid3{grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}
+
+/* ---------- Bottom nav / sidebar ---------- */
+.bnav{position:fixed;left:10px;right:10px;bottom:calc(10px + var(--safe-b));z-index:20;display:flex;justify-content:space-around;align-items:center;padding:6px 6px;border-radius:26px}
+.bnav button{flex:1;border:0;background:none;font:inherit;font-size:11px;font-weight:600;color:var(--ink2);display:flex;flex-direction:column;align-items:center;gap:2px;padding:4px 0;cursor:pointer}
+.bnav button svg{width:23px;height:23px}
+.bnav button.on{color:var(--aqua3)}
+.bnav button.on svg{filter:drop-shadow(0 0 6px rgba(29,161,242,.7))}
+.fab{width:62px;height:62px;flex:none!important;margin-top:-30px;border-radius:50%!important;padding:0!important;border:2px solid #fff!important;
+  background:radial-gradient(circle at 50% 18%,#e9fbff 0 10%,var(--aqua1) 30%,var(--aqua2) 62%,var(--aqua3) 100%)!important;
+  box-shadow:0 8px 18px rgba(0,80,160,.45),inset 0 -4px 10px rgba(0,50,110,.4)!important;color:#fff!important;justify-content:center}
+.fab svg{width:30px!important;height:30px!important;filter:drop-shadow(0 1px 1px rgba(0,40,90,.6))}
+@media (min-width:900px){
+  .bnav{display:none}
+  .side{display:flex;flex-direction:column;gap:6px;width:236px;flex:none;position:sticky;top:0;height:100vh;padding:18px 12px;margin:0}
+  .side .sidepanel{display:flex;flex-direction:column;gap:6px;padding:14px 10px;height:100%}
+  .side .brand{margin:2px 8px 16px;color:var(--ink);text-shadow:0 1px 0 #fff}
+  .side button.nav{display:flex;align-items:center;gap:12px;border:0;background:none;font:inherit;font-weight:600;font-size:15px;color:var(--ink2);padding:10px 12px;border-radius:12px;cursor:pointer;text-align:left}
+  .side button.nav svg{width:21px;height:21px}
+  .side button.nav:hover{background:rgba(255,255,255,.55)}
+  .side button.nav.on{background:linear-gradient(180deg,rgba(255,255,255,.95),rgba(200,235,255,.8));color:var(--aqua3);box-shadow:0 2px 8px rgba(0,80,150,.18)}
+  .side .addbtn{margin-top:8px}
+  main{padding:22px 26px 40px}
+  .topbar .brand{display:none}
+  .grid{grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:18px 16px}
+}
+
+/* ---------- Hojas modales ---------- */
+.overlay{position:fixed;inset:0;z-index:50;background:rgba(0,40,80,.35);-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px);
+  display:flex;align-items:flex-end;justify-content:center;animation:fade .15s}
+@keyframes fade{from{opacity:0}}
+.sheet{width:100%;max-width:720px;max-height:92vh;overflow:auto;border-radius:24px 24px 0 0;padding:16px 16px calc(20px + var(--safe-b));
+  background:linear-gradient(180deg,rgba(240,250,255,.97),rgba(225,243,255,.96));border:1px solid #fff;box-shadow:0 -10px 40px rgba(0,40,90,.35);animation:up .2s ease-out}
+@keyframes up{from{transform:translateY(40px);opacity:.4}}
+@media (min-width:760px){.overlay{align-items:center}.sheet{border-radius:24px;max-height:88vh}}
+.sheet header{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.sheet header h3{flex:1;margin:0;font-size:18px}
+.closex{border:0;background:rgba(0,60,120,.08);width:34px;height:34px;border-radius:50%;cursor:pointer;font-size:18px;color:var(--ink2)}
+.dialog{max-width:420px;border-radius:22px;margin:auto;animation:none}
+.overlay.center{align-items:center;padding:20px}
+
+/* detalle */
+.detail{display:grid;grid-template-columns:130px 1fr;gap:16px}
+.detail .cover{width:130px}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font-size:14px}
+.kv dt{color:var(--muted);font-weight:600}
+.kv dd{margin:0;word-break:break-word}
+.stars{display:inline-flex;gap:2px}
+.stars button{border:0;background:none;cursor:pointer;font-size:24px;line-height:1;padding:0 1px;color:#c3d4e2;text-shadow:0 1px 0 #fff}
+.stars button.on{color:#ffb400;text-shadow:0 0 6px rgba(255,190,0,.6),0 1px 0 #fff}
+.desc{font-size:13.5px;line-height:1.45;color:var(--ink2);max-height:160px;overflow:auto}
+
+/* add */
+.addgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.addopt{display:flex;flex-direction:column;align-items:center;gap:6px;padding:16px 10px;text-align:center;cursor:pointer;border:1px solid #fff;border-radius:16px;
+  background:linear-gradient(180deg,rgba(255,255,255,.95),rgba(205,236,255,.75));box-shadow:0 3px 10px rgba(0,80,150,.15);font:inherit;color:var(--ink)}
+.addopt b{font-size:14.5px}.addopt span{font-size:12px;color:var(--muted)}
+.addopt .ic{width:46px;height:46px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;
+  background:radial-gradient(circle at 50% 20%,#eafcff 0 8%,var(--aqua1) 30%,var(--aqua2) 65%,var(--aqua3));box-shadow:0 3px 8px rgba(0,80,160,.35)}
+.addopt .ic.l{background:radial-gradient(circle at 50% 20%,#f4ffe0 0 8%,var(--lime1) 30%,var(--lime2) 65%,var(--lime3))}
+.addopt .ic svg{width:24px;height:24px}
+
+/* form */
+.formcover{display:flex;gap:14px;align-items:flex-start}
+.formcover .cover{width:96px;flex:none}
+.results{display:flex;flex-direction:column;gap:6px;max-height:300px;overflow:auto;margin-top:8px}
+.res{display:flex;gap:10px;align-items:center;padding:6px;border-radius:12px;background:rgba(255,255,255,.75);border:1px solid #fff;cursor:pointer}
+.res:hover{background:#fff}
+.res img,.res .noimg{width:40px;height:58px;object-fit:cover;border-radius:5px;flex:none;background:#cfe6f7}
+.res .t{font-weight:700;font-size:13.5px}.res .s{font-size:12px;color:var(--ink2)}
+.notice{padding:10px 12px;border-radius:12px;font-size:13.5px;background:rgba(255,246,214,.9);border:1px solid #f1d27a;color:#6b4c00}
+.notice.ok{background:rgba(220,250,225,.9);border-color:#9fdcae;color:#1d5e33}
+.notice.info{background:rgba(220,240,255,.9);border-color:#a9d4f5;color:#0b4a78}
+details.more summary{cursor:pointer;font-weight:600;color:var(--aqua3);font-size:14px;padding:4px 0}
+
+/* scanner */
+.scanwrap{position:fixed;inset:0;z-index:60;background:#000;display:flex;flex-direction:column}
+.scanwrap video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.scanframe{position:absolute;left:50%;top:42%;transform:translate(-50%,-50%);width:min(82vw,460px);height:min(34vw,190px);border-radius:18px;
+  box-shadow:0 0 0 9999px rgba(0,20,40,.5);border:2px solid rgba(127,224,255,.95)}
+.scanframe::after{content:"";position:absolute;left:8%;right:8%;top:50%;height:2px;background:linear-gradient(90deg,transparent,#7fe0ff,transparent);
+  box-shadow:0 0 12px #7fe0ff;animation:scanline 1.6s ease-in-out infinite}
+@keyframes scanline{0%,100%{transform:translateY(-60px)}50%{transform:translateY(60px)}}
+.scanframe.hit{border-color:#7dff8f;box-shadow:0 0 0 9999px rgba(0,40,10,.45),0 0 26px #7dff8f}
+.scantop,.scanbot{position:relative;z-index:2;padding:calc(12px + var(--safe-t)) 14px 12px;display:flex;gap:8px;align-items:center}
+.scanbot{margin-top:auto;flex-direction:column;align-items:stretch;padding-bottom:calc(16px + var(--safe-b))}
+.scanmsg{color:#fff;text-align:center;font-weight:600;text-shadow:0 1px 3px #000;min-height:22px}
+.burstlist{max-height:30vh;overflow:auto;display:flex;flex-direction:column;gap:6px}
+.burstlist .res{background:rgba(255,255,255,.88)}
+.switch{display:inline-flex;align-items:center;gap:8px;color:#fff;font-weight:600;font-size:14px;cursor:pointer;text-shadow:0 1px 2px #000}
+.switch input{width:auto;accent-color:#1da1f2;transform:scale(1.25)}
+
+/* stats */
+.tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;margin-bottom:12px}
+.tile{padding:12px 14px}
+.tile .v{font-size:28px;font-weight:800;line-height:1.1;color:var(--ink)}
+.tile .l{font-size:12.5px;font-weight:600;color:var(--ink2);margin-top:2px}
+.tile .sub{font-size:12px;color:var(--muted)}
+.panels{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px;align-items:start}
+.bars{display:flex;flex-direction:column;gap:7px}
+.bar{display:grid;grid-template-columns:minmax(80px,38%) 1fr auto;gap:8px;align-items:center;font-size:13px}
+.bar .lab{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--ink)}
+.bar .track{height:12px;border-radius:0 4px 4px 0;background:rgba(0,80,150,.08);overflow:hidden}
+.bar .fill{height:100%;border-radius:0 4px 4px 0;background:var(--aqua2);min-width:2px}
+.bar .val{font-variant-numeric:tabular-nums;color:var(--ink2);font-weight:600}
+.stack100{display:flex;height:22px;border-radius:6px;overflow:hidden;gap:2px;background:transparent}
+.stack100 div{height:100%}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:13px;margin-top:8px;color:var(--ink)}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+.cols{display:flex;align-items:flex-end;gap:6px;height:150px;padding-top:6px;border-bottom:1px solid rgba(0,60,120,.2)}
+.cols .g{flex:1;display:flex;gap:2px;align-items:flex-end;height:100%;position:relative}
+.cols .c{flex:1;border-radius:4px 4px 0 0;min-height:0}
+.cols .g:hover{background:rgba(255,255,255,.4);border-radius:4px}
+.colx{display:flex;gap:6px;font-size:10.5px;color:var(--muted);margin-top:4px}
+.colx span{flex:1;text-align:center}
+.gap{font-size:13px;padding:8px 0;border-top:1px solid rgba(0,60,120,.1)}
+.gap:first-child{border-top:0}
+.tip{position:fixed;z-index:80;pointer-events:none;background:rgba(10,40,70,.92);color:#fff;font-size:12.5px;padding:6px 9px;border-radius:8px;white-space:nowrap}
+
+/* libs */
+.librow{display:flex;align-items:center;gap:12px;padding:12px 14px}
+.libicon{width:44px;height:44px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:24px;flex:none;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.8),0 3px 8px rgba(0,60,120,.25)}
+.prog{height:7px;border-radius:4px;background:rgba(0,80,150,.12);overflow:hidden;margin-top:5px}
+.prog div{height:100%;background:var(--read)}
+.emojis{display:flex;flex-wrap:wrap;gap:6px}
+.emojis button{font-size:22px;width:42px;height:42px;border-radius:12px;border:1px solid rgba(0,90,160,.2);background:rgba(255,255,255,.8);cursor:pointer}
+.emojis button.on{border:2px solid var(--aqua2);background:#e3f5ff}
+.colors{display:flex;gap:8px;flex-wrap:wrap}
+.colors button{width:32px;height:32px;border-radius:50%;border:2px solid #fff;cursor:pointer;box-shadow:0 2px 5px rgba(0,0,0,.2)}
+.colors button.on{outline:3px solid var(--aqua2)}
+
+/* toast */
+.toast{position:fixed;left:50%;bottom:calc(100px + var(--safe-b));transform:translateX(-50%);z-index:90;padding:10px 18px;border-radius:999px;color:#fff;font-weight:600;font-size:14px;
+  background:linear-gradient(180deg,rgba(40,170,240,.96),rgba(10,100,170,.96));box-shadow:0 6px 18px rgba(0,50,100,.35);max-width:90vw;text-align:center;animation:fade .2s}
+.spinner{width:42px;height:42px;border-radius:50%;margin:20px auto;border:4px solid rgba(29,161,242,.25);border-top-color:var(--aqua2);animation:spin 0.8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<div class="scenery" aria-hidden="true">
+  <div class="flare"></div>
+  <svg class="hill" viewBox="0 0 1200 260" preserveAspectRatio="none">
+    <defs>
+      <linearGradient id="g1" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#b9f27a"/><stop offset="1" stop-color="#3fa52a"/></linearGradient>
+      <linearGradient id="g2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8fe36a" stop-opacity=".85"/><stop offset="1" stop-color="#2a8a1d"/></linearGradient>
+      <linearGradient id="w" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".7"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>
+    </defs>
+    <path d="M0 150 C 220 70 420 110 640 140 S 1000 90 1200 120 L1200 260 L0 260Z" fill="url(#g2)" opacity=".75"/>
+    <path d="M0 190 C 260 120 520 210 780 170 S 1080 150 1200 175 L1200 260 L0 260Z" fill="url(#g1)"/>
+    <path d="M0 190 C 260 120 520 210 780 170 S 1080 150 1200 175 L1200 186 C 1080 162 960 175 780 182 C 520 222 260 134 0 202Z" fill="url(#w)"/>
+  </svg>
+  <div id="bubbles"></div>
+</div>
+
+<div class="app">
+  <aside class="side">
+    <div class="glass sidepanel">
+      <div class="brand"><img src="icons/icon-192.png" alt="">Estante</div>
+      <button class="nav" data-nav="coleccion">${I.books}Colección</button>
+      <button class="nav" data-nav="stats">${I.chart}Estadísticas</button>
+      <button class="nav" data-nav="libs">${I.shelf}Bibliotecas</button>
+      <button class="nav" data-nav="ajustes">${I.gear}Ajustes</button>
+      <button class="btn addbtn" data-action="add">${I.plus}Agregar título</button>
+      <button class="btn lime" data-action="scan">${I.scan}Escanear ISBN</button>
+    </div>
+  </aside>
+  <main id="main"></main>
+</div>
+
+<nav class="bnav glass">
+  <button data-nav="coleccion">${I.books}<span>Colección</span></button>
+  <button data-nav="stats">${I.chart}<span>Stats</span></button>
+  <button class="fab" data-action="add" aria-label="Agregar">${I.plus}</button>
+  <button data-nav="libs">${I.shelf}<span>Bibliotecas</span></button>
+  <button data-nav="ajustes">${I.gear}<span>Ajustes</span></button>
+</nav>
+
+<div id="layer"></div>
+<input type="file" id="fileBarcode" accept="image/*" class="hidden">
+<input type="file" id="fileCover" accept="image/*" class="hidden">
+<input type="file" id="fileImport" accept="application/json,.json" class="hidden">
+
+<script>
+"use strict";
+/* =====================================================================
+   Iconos
+   ===================================================================== */
+const svg = p => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
+const I = {
+  books: svg('<path d="M4 19.5V5a2 2 0 0 1 2-2h4v18H6a2 2 0 0 1-2-1.5z"/><path d="M10 3h4v18h-4"/><path d="m15 4 3.5-.8 2.5 16.6-3.5.8z"/>'),
+  chart: svg('<path d="M3 3v18h18"/><rect x="7" y="11" width="3" height="7" rx="1"/><rect x="12" y="7" width="3" height="11" rx="1"/><rect x="17" y="13" width="3" height="5" rx="1"/>'),
+  shelf: svg('<rect x="3" y="3" width="18" height="18" rx="3"/><path d="M3 12h18M8 3v9M13 12v9"/>'),
+  gear: svg('<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>'),
+  plus: svg('<path d="M12 5v14M5 12h14"/>'),
+  scan: svg('<path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"/><path d="M7 8v8M10 8v8M13 8v8M16 8v8"/>'),
+  camera: svg('<path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/>'),
+  image: svg('<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/>'),
+  keyboard: svg('<rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"/>'),
+  pen: svg('<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/>'),
+  search: svg('<circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/>'),
+  check: svg('<path d="M20 6 9 17l-5-5"/>'),
+  filter: svg('<path d="M22 3H2l8 9.5V19l4 2v-8.5z"/>'),
+  grid: svg('<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>'),
+  list: svg('<path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>'),
+  torch: svg('<path d="M18 2H6v4l4 4v12h4V10l4-4z"/><path d="M6 6h12"/>'),
+  flip: svg('<path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><path d="M3 21v-5h5"/>'),
+  x: svg('<path d="M18 6 6 18M6 6l12 12"/>'),
+  download: svg('<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5M12 15V3"/>'),
+  upload: svg('<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m17 8-5-5-5 5M12 3v12"/>'),
+};
+// Rellena los ${I.x} del HTML estático
+document.querySelectorAll('.side, .bnav').forEach(el => el.innerHTML = el.innerHTML.replace(/\$\{I\.(\w+)\}/g, (_, k) => I[k] || ''));
+
+/* =====================================================================
+   Utilidades
+   ===================================================================== */
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const norm = s => String(s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
+const fmt = n => new Intl.NumberFormat('es-MX').format(Math.round(n));
+const money = n => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(n);
+const splitList = s => String(s || '').split(/[,;]+/).map(x => x.trim()).filter(Boolean);
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+function toast(msg, ms = 2600) {
+  const t = document.createElement('div'); t.className = 'toast'; t.textContent = msg;
+  document.body.appendChild(t); setTimeout(() => t.remove(), ms);
+}
+function hashColor(s) {
+  let h = 0; for (const c of String(s)) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+  const hues = [200, 190, 160, 130, 215, 175, 95, 225];
+  const hu = hues[h % hues.length];
+  return `linear-gradient(160deg,hsl(${hu} 80% 62%),hsl(${hu + 15} 75% 38%))`;
+}
+
+/* ---------- ISBN ---------- */
+const ISBN = {
+  clean: s => String(s || '').replace(/[^0-9Xx]/g, '').toUpperCase(),
+  valid10(s) { if (!/^\d{9}[\dX]$/.test(s)) return false; let t = 0; for (let i = 0; i < 10; i++) t += (s[i] === 'X' ? 10 : +s[i]) * (10 - i); return t % 11 === 0; },
+  valid13(s) { if (!/^\d{13}$/.test(s)) return false; let t = 0; for (let i = 0; i < 13; i++) t += +s[i] * (i % 2 ? 3 : 1); return t % 10 === 0; },
+  to13(s10) { const b = '978' + s10.slice(0, 9); let t = 0; for (let i = 0; i < 12; i++) t += +b[i] * (i % 2 ? 3 : 1); return b + ((10 - t % 10) % 10); },
+  to10(s13) { if (!s13.startsWith('978')) return null; const b = s13.slice(3, 12); let t = 0; for (let i = 0; i < 9; i++) t += +b[i] * (10 - i); const c = (11 - t % 11) % 11; return b + (c === 10 ? 'X' : c); },
+  /** Devuelve ISBN-13 válido o null */
+  parse(raw) {
+    const s = ISBN.clean(raw);
+    if (s.length === 13 && /^97[89]/.test(s) && ISBN.valid13(s)) return s;
+    if (s.length === 10 && ISBN.valid10(s)) return ISBN.to13(s);
+    return null;
+  },
+  pretty(s) { return s || ''; }
+};
+
+/* =====================================================================
+   Base de datos local (IndexedDB)
+   ===================================================================== */
+const DB = {
+  db: null,
+  open() {
+    return new Promise((res, rej) => {
+      const r = indexedDB.open('estante-db', 1);
+      r.onupgradeneeded = () => {
+        const d = r.result;
+        if (!d.objectStoreNames.contains('items')) d.createObjectStore('items', { keyPath: 'id' });
+        if (!d.objectStoreNames.contains('libs')) d.createObjectStore('libs', { keyPath: 'id' });
+      };
+      r.onsuccess = () => { this.db = r.result; res(); };
+      r.onerror = () => rej(r.error);
+    });
+  },
+  tx(store, mode, fn) {
+    return new Promise((res, rej) => {
+      const t = this.db.transaction(store, mode); const s = t.objectStore(store);
+      const out = fn(s);
+      t.oncomplete = () => res(out && out.result !== undefined ? out.result : out);
+      t.onerror = () => rej(t.error);
+    });
+  },
+  all(store) { return this.tx(store, 'readonly', s => s.getAll()); },
+  put(store, obj) { return this.tx(store, 'readwrite', s => { s.put(obj); }); },
+  putMany(store, arr) { return this.tx(store, 'readwrite', s => { arr.forEach(o => s.put(o)); }); },
+  del(store, id) { return this.tx(store, 'readwrite', s => { s.delete(id); }); },
+  clear(store) { return this.tx(store, 'readwrite', s => { s.clear(); }); },
+};
+
+/* =====================================================================
+   Estado
+   ===================================================================== */
+const LS = {
+  get(k, d) { try { const v = localStorage.getItem('estante:' + k); return v == null ? d : JSON.parse(v); } catch { return d; } },
+  set(k, v) { try { localStorage.setItem('estante:' + k, JSON.stringify(v)); } catch { } },
+};
+const TYPES = { libro: 'Libro', comic: 'Cómic', manga: 'Manga', novela_grafica: 'Novela gráfica', revista: 'Revista' };
+const STATUS = { pendiente: 'Pendiente', leyendo: 'Leyendo', leido: 'Leído' };
+const LIB_EMOJI = ['📚', '📖', '🦸', '🗾', '🐉', '🚀', '🔍', '🏠', '🧳', '⭐', '🎁', '🌱', '🌊', '☁️', '💎', '🎨'];
+const LIB_COLORS = ['#1a8fd8', '#2f9e57', '#13a8a8', '#6a5acd', '#e3a21a', '#d9483b', '#7cc242', '#c2459a'];
+const S = {
+  items: [], libs: [], view: 'coleccion',
+  f: Object.assign({ q: '', lib: 'all', status: '', type: '', publisher: '', author: '', series: '', lang: '', minRating: 0, incomplete: false, sort: 'added' }, LS.get('filters', {})),
+  layout: LS.get('layout', 'grid'),
+  showFilters: false,
+  statsLib: 'all',
+  settings: Object.assign({ gbKey: '', cvKey: '', defaultLib: '', defaultType: 'libro' }, LS.get('settings', {})),
+};
+const libById = id => S.libs.find(l => l.id === id);
+const saveFilters = () => { const { q, ...rest } = S.f; LS.set('filters', rest); };
+
+async function saveItem(it) {
+  it.updatedAt = Date.now();
+  const i = S.items.findIndex(x => x.id === it.id);
+  if (i >= 0) S.items[i] = it; else S.items.push(it);
+  await DB.put('items', it);
+}
+async function deleteItem(id) { S.items = S.items.filter(x => x.id !== id); await DB.del('items', id); }
+async function saveLib(l) { l.updatedAt = Date.now(); const i = S.libs.findIndex(x => x.id === l.id); if (i >= 0) S.libs[i] = l; else S.libs.push(l); await DB.put('libs', l); }
+
+/* =====================================================================
+   Red: fetch con timeout + JSONP (para APIs sin CORS)
+   ===================================================================== */
+async function fetchT(url, ms = 10000) {
+  const c = new AbortController(); const t = setTimeout(() => c.abort(), ms);
+  try { return await fetch(url, { signal: c.signal }); } finally { clearTimeout(t); }
+}
+function jsonp(url, param = 'callback', ms = 12000) {
+  return new Promise((res, rej) => {
+    const cb = '__jp_' + uid(); const s = document.createElement('script');
+    const t = setTimeout(() => { done(); rej(new Error('timeout')); }, ms);
+    function done() { clearTimeout(t); try { delete window[cb]; } catch { window[cb] = undefined; } s.remove(); }
+    window[cb] = d => { done(); res(d); };
+    s.onerror = () => { done(); rej(new Error('jsonp')); };
+    s.src = url + (url.includes('?') ? '&' : '?') + param + '=' + cb;
+    document.head.appendChild(s);
+  });
+}
+async function getJSON(url, jsonpParam) {
+  try { const r = await fetchT(url); if (!r.ok) throw new Error('HTTP ' + r.status); return await r.json(); }
+  catch (e) { if (jsonpParam) return jsonp(url, jsonpParam); throw e; }
+}
+function imgOK(url, ms = 7000) {
+  return new Promise(res => {
+    if (!url) return res(false);
+    const im = new Image(); const t = setTimeout(() => res(false), ms);
+    im.onload = () => { clearTimeout(t); res(im.naturalWidth > 20); };
+    im.onerror = () => { clearTimeout(t); res(false); };
+    im.src = url;
+  });
+}
+
+/* =====================================================================
+   Fuentes de metadatos
+   ===================================================================== */
+const Sources = {
+  async openLibrary(isbn) {
+    const d = await jsonp(`https://openlibrary.org/api/books?bibkeys=ISBN:${isbn}&jscmd=data`);
+    const b = d && d['ISBN:' + isbn]; if (!b) return null;
+    return {
+      title: b.title, subtitle: b.subtitle,
+      authors: (b.authors || []).map(a => a.name),
+      publisher: b.publishers?.[0]?.name,
+      year: (String(b.publish_date || '').match(/\d{4}/) || [])[0],
+      pages: b.number_of_pages,
+      cover: b.cover?.large || b.cover?.medium,
+      categories: (b.subjects || []).slice(0, 4).map(s => s.name),
+      src: 'Open Library'
+    };
+  },
+  async google(isbn) {
+    const key = S.settings.gbKey ? `&key=${encodeURIComponent(S.settings.gbKey)}` : '';
+    let d = await getJSON(`https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}&maxResults=3${key}`);
+    if (!d.items?.length) { const i10 = ISBN.to10(isbn); if (i10) d = await getJSON(`https://www.googleapis.com/books/v1/volumes?q=isbn:${i10}&maxResults=3${key}`); }
+    if (!d.items?.length) return null;
+    return Sources.gbMap(d.items[0].volumeInfo);
+  },
+  gbMap(v) {
+    let cover = v.imageLinks?.thumbnail || v.imageLinks?.smallThumbnail || '';
+    cover = cover.replace('http://', 'https://').replace('&edge=curl', '');
+    const ids = v.industryIdentifiers || [];
+    return {
+      title: v.title, subtitle: v.subtitle, authors: v.authors || [], publisher: v.publisher,
+      year: (String(v.publishedDate || '').match(/\d{4}/) || [])[0], pages: v.pageCount,
+      cover, categories: v.categories || [], language: v.language, description: v.description,
+      isbn: (ids.find(i => i.type === 'ISBN_13') || ids.find(i => i.type === 'ISBN_10') || {}).identifier,
+      src: 'Google Books'
+    };
+  },
+  async openBD(isbn) {
+    const d = await getJSON(`https://api.openbd.jp/v1/get?isbn=${isbn}`);
+    const s = d?.[0]?.summary; if (!s) return null;
+    return {
+      title: s.title, authors: splitList(String(s.author || '').replace(/／/g, ',')), publisher: s.publisher,
+      year: String(s.pubdate || '').slice(0, 4), cover: s.cover, series: s.series, volume: s.volume, language: 'ja', src: 'openBD'
+    };
+  },
+  /** Busca un ISBN en todas las fuentes y combina los resultados */
+  async lookup(isbn) {
+    const jobs = [Sources.google(isbn), Sources.openLibrary(isbn)];
+    if (isbn.startsWith('9784')) jobs.push(Sources.openBD(isbn));
+    const res = (await Promise.allSettled(jobs)).map(r => r.status === 'fulfilled' ? r.value : null).filter(Boolean);
+    if (!res.length) return null;
+    const pick = k => { for (const r of res) { const v = r[k]; if (Array.isArray(v) ? v.length : v) return v; } return undefined; };
+    const out = {
+      title: pick('title'), subtitle: pick('subtitle'), authors: pick('authors') || [], publisher: pick('publisher'),
+      year: pick('year'), pages: pick('pages'), categories: [...new Set(res.flatMap(r => r.categories || []))].slice(0, 6),
+      language: pick('language'), description: pick('description'), series: pick('series'), volume: pick('volume'),
+      source: res.map(r => r.src).join(' + ')
+    };
+    // Portada: Open Library grande > Google > openBD > OL por ISBN
+    const ol = res.find(r => r.src === 'Open Library'), gb = res.find(r => r.src === 'Google Books'), bd = res.find(r => r.src === 'openBD');
+    const cands = [ol?.cover, gb?.cover, bd?.cover, `https://covers.openlibrary.org/b/isbn/${isbn}-L.jpg?default=false`].filter(Boolean);
+    for (const c of cands) { if (await imgOK(c)) { out.cover = c; break; } }
+    out.type = guessType(out);
+    return out;
+  },
+  /** Búsqueda por texto */
+  async searchGoogle(q) {
+    const key = S.settings.gbKey ? `&key=${encodeURIComponent(S.settings.gbKey)}` : '';
+    const d = await getJSON(`https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(q)}&maxResults=20${key}`);
+    return (d.items || []).map(i => Sources.gbMap(i.volumeInfo));
+  },
+  async searchOL(q) {
+    const d = await getJSON(`https://openlibrary.org/search.json?q=${encodeURIComponent(q)}&limit=20&fields=title,subtitle,author_name,publisher,first_publish_year,number_of_pages_median,cover_i,isbn,subject,language`, 'callback');
+    return (d.docs || []).map(x => ({
+      title: x.title, subtitle: x.subtitle, authors: x.author_name || [], publisher: x.publisher?.[0], year: x.first_publish_year,
+      pages: x.number_of_pages_median, cover: x.cover_i ? `https://covers.openlibrary.org/b/id/${x.cover_i}-L.jpg` : '',
+      isbn: (x.isbn || []).find(i => i.length === 13) || x.isbn?.[0], categories: (x.subject || []).slice(0, 4), src: 'Open Library'
+    }));
+  },
+  async searchCV(q) {
+    if (!S.settings.cvKey) throw new Error('nokey');
+    const fl = 'id,name,image,publisher,start_year,resource_type,volume,issue_number,cover_date,deck,count_of_issues';
+    const d = await jsonp(`https://comicvine.gamespot.com/api/search/?api_key=${encodeURIComponent(S.settings.cvKey)}&format=jsonp&resources=volume,issue&limit=20&field_list=${fl}&query=${encodeURIComponent(q)}`, 'json_callback');
+    if (d.error && d.error !== 'OK') throw new Error(d.error);
+    return (d.results || []).map(r => r.resource_type === 'issue' ? {
+      title: (r.volume?.name || '') + (r.issue_number ? ` #${r.issue_number}` : '') + (r.name ? ` — ${r.name}` : ''),
+      series: r.volume?.name, volume: r.issue_number, year: String(r.cover_date || '').slice(0, 4),
+      cover: r.image?.medium_url || r.image?.small_url, description: stripHtml(r.deck || ''), type: 'comic', src: 'Comic Vine'
+    } : {
+      title: r.name, series: r.name, publisher: r.publisher?.name, year: r.start_year,
+      cover: r.image?.medium_url || r.image?.small_url, description: stripHtml(r.deck || ''), type: 'comic',
+      extra: r.count_of_issues ? `${r.count_of_issues} números` : '', src: 'Comic Vine'
+    });
+  }
+};
+function stripHtml(h) { const d = document.createElement('div'); d.innerHTML = h; return d.textContent || ''; }
+function guessType(m) {
+  const txt = norm([...(m.categories || []), m.title, m.publisher].join(' '));
+  if (/manga|shonen|shojo|seinen|panini manga|ivrea|kamite|norma editorial.*manga/.test(txt) || m.language === 'ja') return 'manga';
+  if (/comic|historieta|superhero|marvel|dc comics|image comics|dark horse|idw|boom! studios/.test(txt)) return 'comic';
+  if (/graphic novel|novela grafica/.test(txt)) return 'novela_grafica';
+  return S.settings.defaultType || 'libro';
+}
+
+/* =====================================================================
+   Escáner de códigos de barras
+   ===================================================================== */
+function loadScript(src) { return new Promise((res, rej) => { const s = document.createElement('script'); s.src = src; s.onload = res; s.onerror = rej; document.head.appendChild(s); }); }
+const Scanner = {
+  detector: null, stream: null, track: null, running: false, burst: LS.get('burst', false),
+  last: '', hits: 0, seen: new Set(), facing: 'environment', torch: false, busy: false,
+  async getDetector() {
+    if (this.detector) return this.detector;
+    const want = ['ean_13', 'ean_8', 'upc_a', 'upc_e'];
+    if ('BarcodeDetector' in window) {
+      try {
+        const sup = await BarcodeDetector.getSupportedFormats();
+        if (sup.includes('ean_13')) { this.detector = new BarcodeDetector({ formats: want.filter(f => sup.includes(f)) }); return this.detector; }
+      } catch { }
+    }
+    await loadScript('vendor/barcode-ponyfill.js');
+    const api = window.BarcodeDetectionAPI;
+    const wasm = new URL('vendor/zxing_reader.wasm', location.href).href;
+    await api.prepareZXingModule({ overrides: { locateFile: (p, pre) => p.endsWith('.wasm') ? wasm : pre + p }, fireImmediately: true });
+    this.detector = new api.BarcodeDetector({ formats: want });
+    return this.detector;
+  },
+  async open() {
+    this.seen.clear(); this.last = ''; this.hits = 0;
+    const ov = document.createElement('div'); ov.className = 'scanwrap'; ov.id = 'scanner';
+    ov.innerHTML = `
+      <video playsinline muted autoplay></video>
+      <div class="scanframe"></div>
+      <div class="scantop">
+        <button class="btn ghost icon" data-sc="close" aria-label="Cerrar">${I.x}</button>
+        <div class="grow"></div>
+        <button class="btn ghost icon hidden" data-sc="torch" aria-label="Linterna">${I.torch}</button>
+        <button class="btn ghost icon" data-sc="flip" aria-label="Cambiar cámara">${I.flip}</button>
+      </div>
+      <div class="scanbot">
+        <div class="scanmsg">Apunta al código de barras (ISBN)</div>
+        <div class="row" style="justify-content:space-between">
+          <label class="switch"><input type="checkbox" data-sc="burst" ${this.burst ? 'checked' : ''}> Modo ráfaga</label>
+          <span class="small" style="color:#cfeeff" data-sc="target"></span>
+        </div>
+        <div class="burstlist"></div>
+        <div class="row">
+          <button class="btn ghost grow" data-sc="type">${I.keyboard}Escribir ISBN</button>
+          <button class="btn lime grow hidden" data-sc="done">${I.check}Listo</button>
+        </div>
+      </div>`;
+    document.body.appendChild(ov);
+    this.updateTarget();
+    ov.addEventListener('click', e => {
+      const b = e.target.closest('[data-sc]'); if (!b) return;
+      const a = b.dataset.sc;
+      if (a === 'close' || a === 'done') this.close();
+      if (a === 'flip') { this.facing = this.facing === 'environment' ? 'user' : 'environment'; this.start(); }
+      if (a === 'torch') this.toggleTorch();
+      if (a === 'type') { this.close(); openAdd('type'); }
+    });
+    ov.querySelector('[data-sc=burst]').addEventListener('change', e => { this.burst = e.target.checked; LS.set('burst', this.burst); this.updateTarget(); });
+    try { await this.getDetector(); } catch (e) { this.msg('No se pudo cargar el lector de códigos. Revisa tu conexión la primera vez.'); return; }
+    await this.start();
+  },
+  updateTarget() {
+    const el = $('#scanner [data-sc=target]'); if (!el) return;
+    const lib = libById(currentAddLib());
+    el.textContent = this.burst ? `Se guardan en: ${lib ? lib.icon + ' ' + lib.name : ''}` : '';
+  },
+  msg(t) { const m = $('#scanner .scanmsg'); if (m) m.textContent = t; },
+  async start() {
+    this.stopStream();
+    const video = $('#scanner video'); if (!video) return;
+    if (!navigator.mediaDevices?.getUserMedia) { this.msg('Tu navegador no permite usar la cámara aquí (requiere HTTPS). Usa "Foto del código" o escribe el ISBN.'); return; }
+    try {
+      this.stream = await navigator.mediaDevices.getUserMedia({ audio: false, video: { facingMode: { ideal: this.facing }, width: { ideal: 1920 }, height: { ideal: 1080 } } });
+    } catch (e) {
+      this.msg(e.name === 'NotAllowedError' ? 'Permiso de cámara denegado. Actívalo en el candado de la barra de direcciones.' : 'No encontré cámara. Usa "Foto del código" o escribe el ISBN.');
+      return;
+    }
+    video.srcObject = this.stream; await video.play().catch(() => { });
+    this.track = this.stream.getVideoTracks()[0];
+    try {
+      const caps = this.track.getCapabilities?.() || {};
+      if (caps.torch) $('#scanner [data-sc=torch]').classList.remove('hidden');
+      if (caps.focusMode?.includes('continuous')) await this.track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] });
+    } catch { }
+    this.running = true; this.loop();
+  },
+  async toggleTorch() { this.torch = !this.torch; try { await this.track.applyConstraints({ advanced: [{ torch: this.torch }] }); } catch { } },
+  async loop() {
+    const video = $('#scanner video');
+    if (!this.running || !video) return;
+    if (video.readyState >= 2 && !this.busy) {
+      try {
+        const codes = await this.detector.detect(video);
+        if (codes.length) this.onRaw(codes[0].rawValue);
+      } catch { }
+    }
+    setTimeout(() => this.running && requestAnimationFrame(() => this.loop()), 110);
+  },
+  onRaw(raw) {
+    const code = String(raw).replace(/\D/g, '');
+    if (code.length < 8) return;
+    if (code === this.last) this.hits++; else { this.last = code; this.hits = 1; }
+    if (this.hits < 2) return;           // confirma con 2 lecturas iguales
+    this.hits = 0;
+    if (this.burst) { if (this.seen.has(code)) return; this.seen.add(code); beep(); this.flash(); burstAdd(code); }
+    else { beep(); this.flash(); this.close(); processCode(code); }
+  },
+  flash() { const f = $('#scanner .scanframe'); if (f) { f.classList.add('hit'); setTimeout(() => f.classList.remove('hit'), 450); } },
+  stopStream() { this.running = false; if (this.stream) this.stream.getTracks().forEach(t => t.stop()); this.stream = null; },
+  close() { this.stopStream(); $('#scanner')?.remove(); if (Scanner.burstCount) { render(); Scanner.burstCount = 0; } },
+  /** Lee un código desde una foto (ideal en PC sin webcam) */
+  async fromFile(file) {
+    try {
+      const det = await this.getDetector();
+      const bmp = await createImageBitmap(file);
+      let codes = await det.detect(bmp);
+      if (!codes.length) { // reintento con imagen reducida (fotos muy grandes)
+        const c = document.createElement('canvas'); const k = Math.min(1, 1600 / Math.max(bmp.width, bmp.height));
+        c.width = bmp.width * k; c.height = bmp.height * k; c.getContext('2d').drawImage(bmp, 0, 0, c.width, c.height);
+        codes = await det.detect(c);
+      }
+      if (!codes.length) { toast('No encontré un código de barras en la foto. Prueba más cerca y con buena luz.'); return; }
+      processCode(codes[0].rawValue);
+    } catch (e) { toast('No se pudo leer la imagen.'); }
+  }
+};
+let audioCtx;
+function beep() {
+  try {
+    audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+    const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+    o.type = 'sine'; o.frequency.value = 1320; g.gain.setValueAtTime(.15, audioCtx.currentTime); g.gain.exponentialRampToValueAtTime(.001, audioCtx.currentTime + .18);
+    o.connect(g).connect(audioCtx.destination); o.start(); o.stop(audioCtx.currentTime + .2);
+  } catch { }
+  navigator.vibrate?.(60);
+}
+
+/* ---------- Flujo tras leer un código ---------- */
+function currentAddLib() {
+  if (S.f.lib !== 'all' && libById(S.f.lib)) return S.f.lib;
+  if (S.settings.defaultLib && libById(S.settings.defaultLib)) return S.settings.defaultLib;
+  return S.libs[0]?.id;
+}
+const findByCode = code => { const i = ISBN.parse(code); return S.items.filter(x => x.isbn && (x.isbn === code || (i && x.isbn === i))); };
+
+async function processCode(raw) {
+  const code = ISBN.clean(raw);
+  const isbn = ISBN.parse(code);
+  const dups = findByCode(code);
+  if (dups.length) {
+    const d = dups[0]; const l = libById(d.libraryId);
+    const ok = await confirmBox(`Ya tienes «${d.title}» en ${l ? l.icon + ' ' + l.name : 'tu colección'}.`, '¿Agregar otro ejemplar?', 'Agregar', 'Ver el que tengo');
+    if (!ok) { openDetail(d.id); return; }
+  }
+  if (!isbn) {
+    openForm({ isbn: code, type: 'comic' }, { notice: `El código <b>${esc(code)}</b> no es un ISBN (parece un UPC/EAN, típico de cómics sueltos). Búscalo por título en Comic Vine o captúralo a mano.`, noticeKind: 'warn', openSearch: true, searchSrc: S.settings.cvKey ? 'cv' : 'gb' });
+    return;
+  }
+  showLoading(`Buscando ISBN ${isbn}…`);
+  let meta = null;
+  try { meta = await Sources.lookup(isbn); } catch { }
+  closeLayer();
+  if (meta && meta.title) openForm({ ...meta, isbn }, { notice: `Datos encontrados en ${esc(meta.source)}. Revisa y guarda.`, noticeKind: 'ok' });
+  else openForm({ isbn }, { notice: `No encontré el ISBN <b>${isbn}</b> en las bases gratuitas. Busca por título o captura los datos a mano.`, noticeKind: 'warn', openSearch: true });
+}
+
+async function burstAdd(raw) {
+  const list = $('#scanner .burstlist'); const done = $('#scanner [data-sc=done]'); done?.classList.remove('hidden');
+  const row = document.createElement('div'); row.className = 'res';
+  row.innerHTML = `<div class="noimg"></div><div class="grow"><div class="t">${esc(raw)}</div><div class="s">Buscando…</div></div>`;
+  list?.prepend(row);
+  const set = (img, t, s) => { row.innerHTML = `${img ? `<img src="${esc(img)}" alt="" referrerpolicy="no-referrer" onerror="this.style.visibility='hidden'">` : '<div class="noimg"></div>'}<div class="grow"><div class="t">${esc(t)}</div><div class="s">${s}</div></div>`; };
+  const code = ISBN.clean(raw); const isbn = ISBN.parse(code);
+  if (findByCode(code).length) { set('', findByCode(code)[0].title, '⚠ Ya estaba en tu colección (omitido)'); return; }
+  let meta = null;
+  if (isbn) { try { meta = await Sources.lookup(isbn); } catch { } }
+  const now = Date.now();
+  const it = {
+    id: uid(), isbn: isbn || code, libraryId: currentAddLib(), status: 'pendiente', addedAt: now, rating: 0,
+    title: meta?.title || `Por completar · ${isbn || code}`, subtitle: meta?.subtitle || '', authors: meta?.authors || [], publisher: meta?.publisher || '',
+    year: meta?.year ? +meta.year : null, pages: meta?.pages ? +meta.pages : null, cover: meta?.cover || '', categories: meta?.categories || [],
+    language: meta?.language || '', description: meta?.description || '', series: meta?.series || '', volume: meta?.volume || '',
+    type: meta ? meta.type : (isbn ? S.settings.defaultType : 'comic'), incomplete: !meta?.title, source: meta?.source || '', tags: [], notes: ''
+  };
+  await saveItem(it);
+  Scanner.burstCount = (Scanner.burstCount || 0) + 1;
+  set(it.cover, it.title, it.incomplete ? '✗ Sin datos — guardado como <b>Por completar</b>' : `✓ Guardado · ${esc(it.authors.join(', '))}`);
+}
+
+/* =====================================================================
+   Capas (hojas / diálogos)
+   ===================================================================== */
+function openLayer(html, { center = false, cls = '' } = {}) {
+  const L = $('#layer'); L.innerHTML = `<div class="overlay ${center ? 'center' : ''}"><div class="sheet ${cls}">${html}</div></div>`;
+  const ov = L.firstElementChild;
+  ov.addEventListener('mousedown', e => { if (e.target === ov) closeLayer(); });
+  return ov.firstElementChild;
+}
+function closeLayer() { $('#layer').innerHTML = ''; }
+function showLoading(t) { openLayer(`<div class="spinner"></div><p style="text-align:center;font-weight:600">${esc(t)}</p>`, { center: true, cls: 'dialog' }); }
+function confirmBox(title, body = '', yes = 'Aceptar', no = 'Cancelar', danger = false) {
+  return new Promise(res => {
+    const d = document.createElement('div'); d.className = 'overlay center'; d.style.zIndex = 70;
+    d.innerHTML = `<div class="sheet dialog"><h3 style="margin:0 0 6px">${esc(title)}</h3><p class="muted" style="margin:0 0 16px">${esc(body)}</p>
+      <div class="row" style="justify-content:flex-end"><button class="btn ghost" data-r="0">${esc(no)}</button><button class="btn ${danger ? 'danger' : ''}" data-r="1">${esc(yes)}</button></div></div>`;
+    document.body.appendChild(d);
+    d.addEventListener('click', e => { const b = e.target.closest('[data-r]'); if (b || e.target === d) { d.remove(); res(b?.dataset.r === '1'); } });
+  });
+}
+function promptBox(title, value = '', placeholder = '') {
+  return new Promise(res => {
+    const d = document.createElement('div'); d.className = 'overlay center'; d.style.zIndex = 70;
+    d.innerHTML = `<div class="sheet dialog"><h3 style="margin:0 0 10px">${esc(title)}</h3><input value="${esc(value)}" placeholder="${esc(placeholder)}">
+      <div class="row" style="justify-content:flex-end;margin-top:14px"><button class="btn ghost" data-r="0">Cancelar</button><button class="btn" data-r="1">Aceptar</button></div></div>`;
+    document.body.appendChild(d); const inp = d.querySelector('input'); inp.focus(); inp.select();
+    const finish = ok => { d.remove(); res(ok ? inp.value.trim() : null); };
+    inp.addEventListener('keydown', e => { if (e.key === 'Enter') finish(true); });
+    d.addEventListener('click', e => { const b = e.target.closest('[data-r]'); if (b) finish(b.dataset.r === '1'); else if (e.target === d) finish(false); });
+  });
+}
+
+/* ---------- Portada ---------- */
+function coverHTML(it, size = '') {
+  const ph = `<div class="ph" style="background:${hashColor(it.title || it.isbn)}">${esc(it.title || 'Sin título')}<small>${esc((it.authors || [])[0] || '')}</small></div>`;
+  return `<div class="cover ${size}">${ph}${it.cover ? `<img src="${esc(it.cover)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">` : ''}</div>`;
+}
+
+/* =====================================================================
+   Hoja: Agregar
+   ===================================================================== */
+function openAdd(mode) {
+  const el = openLayer(`
+    <header><h3>Agregar a tu colección</h3><button class="closex" data-x>✕</button></header>
+    <div class="addgrid">
+      <button class="addopt" data-add="scan"><span class="ic l">${I.scan}</span><b>Escanear</b><span>Con la cámara</span></button>
+      <button class="addopt" data-add="photo"><span class="ic">${I.image}</span><b>Foto del código</b><span>Desde una imagen</span></button>
+      <button class="addopt" data-add="search"><span class="ic">${I.search}</span><b>Buscar por título</b><span>Google, Open Library, Comic Vine</span></button>
+      <button class="addopt" data-add="manual"><span class="ic">${I.pen}</span><b>Captura manual</b><span>Llenar los datos tú</span></button>
+    </div>
+    <div class="glass pad" style="margin-top:14px">
+      <label class="f">Escribir ISBN (10 o 13 dígitos)
+        <div class="row"><input id="isbnIn" inputmode="numeric" placeholder="978…" class="grow" style="width:auto"><button class="btn" id="isbnGo">Buscar</button></div>
+      </label>
+      <p class="small muted" style="margin:8px 0 0">Se guardará en: <b>${esc((libById(currentAddLib()) || {}).name || '')}</b></p>
+    </div>`);
+  el.addEventListener('click', e => {
+    if (e.target.closest('[data-x]')) return closeLayer();
+    const b = e.target.closest('[data-add]'); if (!b) return;
+    const a = b.dataset.add;
+    if (a === 'scan') { closeLayer(); Scanner.open(); }
+    if (a === 'photo') { $('#fileBarcode').click(); }
+    if (a === 'manual') openForm({}, {});
+    if (a === 'search') openForm({}, { openSearch: true });
+  });
+  const go = () => {
+    const v = $('#isbnIn').value; const c = ISBN.clean(v);
+    if (c.length < 8) { toast('Escribe un ISBN válido'); return; }
+    if (!ISBN.parse(c) && (c.length === 10 || c.length === 13) && /^97[89]/.test(c)) { toast('El dígito verificador no cuadra; revisa el número'); return; }
+    closeLayer(); processCode(c);
+  };
+  $('#isbnGo').onclick = go; $('#isbnIn').addEventListener('keydown', e => e.key === 'Enter' && go());
+  if (mode === 'type') setTimeout(() => $('#isbnIn')?.focus(), 50);
+}
+$('#fileBarcode').addEventListener('change', e => { const f = e.target.files[0]; e.target.value = ''; if (f) { closeLayer(); Scanner.fromFile(f); } });
+
+/* =====================================================================
+   Formulario de alta / edición
+   ===================================================================== */
+let formCover = '';
+function openForm(data = {}, opts = {}) {
+  const it = Object.assign({ title: '', subtitle: '', authors: [], publisher: '', year: '', pages: '', type: S.settings.defaultType || 'libro', series: '', volume: '', language: '', libraryId: currentAddLib(), status: 'pendiente', rating: 0, price: '', isbn: '', tags: [], notes: '', description: '', categories: [], cover: '' }, data);
+  formCover = it.cover || '';
+  const editing = !!it.id;
+  const opt = (obj, sel) => Object.entries(obj).map(([k, v]) => `<option value="${k}" ${k === sel ? 'selected' : ''}>${esc(v)}</option>`).join('');
+  const libOpts = S.libs.map(l => `<option value="${l.id}" ${l.id === it.libraryId ? 'selected' : ''}>${esc(l.icon + ' ' + l.name)}</option>`).join('');
+  const uniq = k => [...new Set(S.items.flatMap(x => Array.isArray(x[k]) ? x[k] : [x[k]]).filter(Boolean))].sort();
+  const el = openLayer(`
+    <header><h3>${editing ? 'Editar título' : 'Nuevo título'}</h3><button class="closex" data-x>✕</button></header>
+    ${opts.notice ? `<div class="notice ${opts.noticeKind || ''}" style="margin-bottom:12px">${opts.notice}</div>` : ''}
+    <details class="more glass pad" ${opts.openSearch ? 'open' : ''} style="margin-bottom:12px">
+      <summary>🔎 Autocompletar buscando por título</summary>
+      <div class="row" style="margin-top:8px">
+        <input id="sq" class="grow" style="width:auto" placeholder="Título, autor o serie" value="${esc(opts.query || '')}">
+        <select id="ssrc" style="width:auto">
+          <option value="gb" ${opts.searchSrc === 'gb' ? 'selected' : ''}>Google Books</option>
+          <option value="ol">Open Library</option>
+          <option value="cv" ${opts.searchSrc === 'cv' ? 'selected' : ''}>Comic Vine</option>
+        </select>
+        <button class="btn sm" id="sgo">Buscar</button>
+      </div>
+      <div class="results" id="sres"></div>
+    </details>
+    <form id="itemForm" class="stack" autocomplete="off">
+      <div class="formcover">
+        <div id="fcov">${coverHTML({ ...it, cover: formCover })}</div>
+        <div class="stack grow">
+          <label class="f">Título *<input name="title" required value="${esc(it.title)}"></label>
+          <label class="f">Subtítulo<input name="subtitle" value="${esc(it.subtitle)}"></label>
+          <div class="row">
+            <button type="button" class="btn ghost sm" data-cov="photo">${I.camera}Foto/imagen</button>
+            <button type="button" class="btn ghost sm" data-cov="url">URL</button>
+            <button type="button" class="btn ghost sm" data-cov="none">Quitar</button>
+          </div>
+        </div>
+      </div>
+      <div class="grid2">
+        <label class="f span2"><span>Autor(es) <span class="muted" style="font-weight:400">· separados por coma</span></span><input name="authors" list="dlAuthors" value="${esc((it.authors || []).join(', '))}"></label>
+        <label class="f">Editorial<input name="publisher" list="dlPub" value="${esc(it.publisher)}"></label>
+        <label class="f">Tipo<select name="type">${opt(TYPES, it.type)}</select></label>
+        <label class="f">Serie / colección<input name="series" list="dlSeries" value="${esc(it.series)}"></label>
+        <label class="f">Volumen / número<input name="volume" value="${esc(it.volume)}" inputmode="decimal"></label>
+        <label class="f">Año<input name="year" value="${esc(it.year || '')}" inputmode="numeric"></label>
+        <label class="f">Páginas<input name="pages" value="${esc(it.pages || '')}" inputmode="numeric"></label>
+        <label class="f">Biblioteca<select name="libraryId">${libOpts}</select></label>
+        <label class="f">Idioma<input name="language" value="${esc(it.language)}" placeholder="es, en, ja…"></label>
+      </div>
+      <div class="glass pad stack">
+        <div class="row"><b class="grow">Estado de lectura</b>
+          <div class="seg" id="fstatus">${Object.entries(STATUS).map(([k, v]) => `<button type="button" data-v="${k}" class="${k === it.status ? 'on' : ''}">${v}</button>`).join('')}</div>
+        </div>
+        <div class="row"><b class="grow">Calificación</b><div class="stars" id="fstars" data-v="${it.rating || 0}">${[1, 2, 3, 4, 5].map(n => `<button type="button" data-n="${n}" class="${n <= (it.rating || 0) ? 'on' : ''}">★</button>`).join('')}</div></div>
+        <label class="f">Fecha en que lo terminaste<input type="date" name="readDate" value="${it.readDate ? new Date(it.readDate).toISOString().slice(0, 10) : ''}"></label>
+      </div>
+      <details class="more"><summary>Más datos</summary>
+        <div class="grid2" style="margin-top:8px">
+          <label class="f">ISBN / código<input name="isbn" value="${esc(it.isbn)}" inputmode="numeric"></label>
+          <label class="f">Precio pagado (MXN)<input name="price" value="${esc(it.price || '')}" inputmode="decimal"></label>
+          <label class="f span2"><span>Etiquetas / géneros <span class="muted" style="font-weight:400">· separadas por coma</span></span><input name="tags" value="${esc([...(it.tags || []), ...((!editing && it.categories) || [])].join(', '))}"></label>
+          <label class="f span2">Notas<textarea name="notes">${esc(it.notes)}</textarea></label>
+          <label class="f span2">Sinopsis<textarea name="description">${esc(it.description)}</textarea></label>
+        </div>
+      </details>
+      <div class="row" style="justify-content:flex-end;margin-top:4px">
+        <button type="button" class="btn ghost" data-x>Cancelar</button>
+        <button type="submit" class="btn lime">${I.check}Guardar</button>
+      </div>
+      <datalist id="dlAuthors">${uniq('authors').map(a => `<option value="${esc(a)}">`).join('')}</datalist>
+      <datalist id="dlPub">${uniq('publisher').map(a => `<option value="${esc(a)}">`).join('')}</datalist>
+      <datalist id="dlSeries">${uniq('series').map(a => `<option value="${esc(a)}">`).join('')}</datalist>
+    </form>`);
+  const form = $('#itemForm', el);
+  let status = it.status;
+  el.addEventListener('click', async e => {
+    if (e.target.closest('[data-x]')) return closeLayer();
+    const sb = e.target.closest('#fstatus button'); if (sb) { status = sb.dataset.v; $$('#fstatus button', el).forEach(b => b.classList.toggle('on', b === sb)); if (status === 'leido' && !form.readDate.value) form.readDate.value = new Date().toISOString().slice(0, 10); }
+    const st = e.target.closest('#fstars button'); if (st) { const n = +st.dataset.n; const cur = +$('#fstars', el).dataset.v; const v = cur === n ? 0 : n; $('#fstars', el).dataset.v = v; $$('#fstars button', el).forEach(b => b.classList.toggle('on', +b.dataset.n <= v)); }
+    const cv = e.target.closest('[data-cov]');
+    if (cv) {
+      const a = cv.dataset.cov;
+      if (a === 'photo') $('#fileCover').click();
+      if (a === 'none') { formCover = ''; refreshCover(); }
+      if (a === 'url') { const u = await promptBox('URL de la imagen de portada', formCover.startsWith('data:') ? '' : formCover, 'https://…'); if (u != null) { formCover = u; refreshCover(); } }
+    }
+    const r = e.target.closest('.res[data-i]'); if (r) applyResult(searchResults[+r.dataset.i]);
+  });
+  const refreshCover = () => { $('#fcov', el).innerHTML = coverHTML({ title: form.title.value, authors: splitList(form.authors.value), cover: formCover }); };
+  form.title.addEventListener('input', () => { if (!formCover) refreshCover(); });
+  // búsqueda por título
+  let searchResults = [];
+  const doSearch = async () => {
+    const q = $('#sq', el).value.trim(); const src = $('#ssrc', el).value; const box = $('#sres', el);
+    if (!q) return;
+    box.innerHTML = '<div class="spinner"></div>';
+    try {
+      searchResults = src === 'cv' ? await Sources.searchCV(q) : src === 'ol' ? await Sources.searchOL(q) : await Sources.searchGoogle(q);
+      box.innerHTML = searchResults.length ? searchResults.map((r, i) => `<div class="res" data-i="${i}">${r.cover ? `<img src="${esc(r.cover)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.style.visibility='hidden'">` : '<div class="noimg"></div>'}
+        <div class="grow"><div class="t">${esc(r.title)}</div><div class="s">${esc([(r.authors || []).join(', '), r.publisher, r.year, r.extra, r.isbn].filter(Boolean).join(' · '))}</div></div></div>`).join('')
+        : '<p class="small muted">Sin resultados. Prueba con menos palabras u otra fuente.</p>';
+    } catch (err) {
+      box.innerHTML = err.message === 'nokey'
+        ? '<div class="notice info">Para Comic Vine necesitas tu clave gratuita. Pégala en <b>Ajustes → Claves de API</b>.</div>'
+        : `<div class="notice">No se pudo consultar (${esc(err.message)}). ${src === 'gb' ? 'Google limita las consultas sin clave; prueba Open Library o agrega tu clave en Ajustes.' : 'Intenta de nuevo.'}</div>`;
+    }
+  };
+  $('#sgo', el).onclick = doSearch; $('#sq', el).addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); doSearch(); } });
+  if (opts.openSearch && opts.query) doSearch();
+  function applyResult(r) {
+    if (!r) return;
+    const set = (n, v) => { if (v != null && v !== '' && form[n]) form[n].value = Array.isArray(v) ? v.join(', ') : v; };
+    set('title', r.title); set('subtitle', r.subtitle); set('authors', r.authors); set('publisher', r.publisher); set('year', r.year); set('pages', r.pages);
+    set('series', r.series); set('volume', r.volume); set('language', r.language); set('description', r.description);
+    if (!ISBN.clean(form.isbn.value) && r.isbn) set('isbn', r.isbn);
+    if (r.categories?.length && !form.tags.value) set('tags', r.categories);
+    form.type.value = r.type || guessType(r);
+    if (r.cover) formCover = r.cover;
+    refreshCover(); el.querySelector('details.more').open = false;
+    toast('Datos aplicados ✓'); form.scrollIntoView({ behavior: 'smooth' });
+  }
+  $('#fileCover').onchange = async e => { const f = e.target.files[0]; e.target.value = ''; if (!f) return; formCover = await resizeImage(f, 700); refreshCover(); };
+  form.addEventListener('submit', async e => {
+    e.preventDefault();
+    const fd = Object.fromEntries(new FormData(form));
+    const out = Object.assign({}, data, {
+      id: it.id || uid(), title: fd.title.trim(), subtitle: fd.subtitle.trim(), authors: splitList(fd.authors), publisher: fd.publisher.trim(),
+      type: fd.type, series: fd.series.trim(), volume: fd.volume.trim(), year: parseInt(fd.year) || null, pages: parseInt(fd.pages) || null,
+      libraryId: fd.libraryId, language: fd.language.trim().toLowerCase(), status, rating: +$('#fstars', el).dataset.v || 0,
+      readDate: fd.readDate ? new Date(fd.readDate + 'T12:00:00').getTime() : (status === 'leido' ? (it.readDate || Date.now()) : null),
+      isbn: ISBN.parse(fd.isbn) || ISBN.clean(fd.isbn), price: parseFloat(fd.price) || null, tags: splitList(fd.tags), notes: fd.notes, description: fd.description,
+      cover: formCover, addedAt: it.addedAt || Date.now(), incomplete: false
+    });
+    delete out.categories; delete out.source; delete out.src;
+    await saveItem(out);
+    closeLayer(); toast(editing ? 'Cambios guardados' : 'Agregado a tu colección ✓'); render();
+  });
+}
+function resizeImage(file, max) {
+  return new Promise(res => {
+    const r = new FileReader();
+    r.onload = () => { const im = new Image(); im.onload = () => { const k = Math.min(1, max / Math.max(im.width, im.height)); const c = document.createElement('canvas'); c.width = im.width * k; c.height = im.height * k; c.getContext('2d').drawImage(im, 0, 0, c.width, c.height); res(c.toDataURL('image/jpeg', .82)); }; im.src = r.result; };
+    r.readAsDataURL(file);
+  });
+}
+
+/* =====================================================================
+   Detalle
+   ===================================================================== */
+function openDetail(id) {
+  const it = S.items.find(x => x.id === id); if (!it) return;
+  const lib = libById(it.libraryId);
+  const kv = [
+    ['Autor', (it.authors || []).join(', ')], ['Editorial', it.publisher], ['Tipo', TYPES[it.type]],
+    ['Serie', it.series ? it.series + (it.volume ? ` · #${it.volume}` : '') : ''], ['Año', it.year], ['Páginas', it.pages],
+    ['Idioma', it.language], ['ISBN', it.isbn], ['Biblioteca', lib ? lib.icon + ' ' + lib.name : ''],
+    ['Etiquetas', (it.tags || []).join(', ')], ['Precio', it.price ? money(it.price) : ''],
+    ['Agregado', it.addedAt ? new Date(it.addedAt).toLocaleDateString('es-MX') : ''],
+    ['Terminado', it.readDate && it.status === 'leido' ? new Date(it.readDate).toLocaleDateString('es-MX') : ''],
+  ].filter(([, v]) => v);
+  const el = openLayer(`
+    <header><h3>${esc(it.title)}</h3><button class="closex" data-x>✕</button></header>
+    ${it.incomplete ? '<div class="notice" style="margin-bottom:12px">Este título se guardó sin datos. Toca <b>Editar</b> para completarlo.</div>' : ''}
+    <div class="detail">
+      ${coverHTML(it)}
+      <div class="stack">
+        ${it.subtitle ? `<div class="muted">${esc(it.subtitle)}</div>` : ''}
+        <dl class="kv">${kv.map(([k, v]) => `<dt>${k}</dt><dd>${esc(v)}</dd>`).join('')}</dl>
+      </div>
+    </div>
+    <div class="glass pad stack" style="margin-top:14px">
+      <div class="row"><b class="grow">Estado</b><div class="seg" id="dstatus">${Object.entries(STATUS).map(([k, v]) => `<button data-v="${k}" class="${k === it.status ? 'on' : ''}">${v}</button>`).join('')}</div></div>
+      <div class="row"><b class="grow">Calificación</b><div class="stars" id="dstars">${[1, 2, 3, 4, 5].map(n => `<button data-n="${n}" class="${n <= (it.rating || 0) ? 'on' : ''}">★</button>`).join('')}</div></div>
+      <label class="f">Mover a biblioteca<select id="dlib">${S.libs.map(l => `<option value="${l.id}" ${l.id === it.libraryId ? 'selected' : ''}>${esc(l.icon + ' ' + l.name)}</option>`).join('')}</select></label>
+    </div>
+    ${it.notes ? `<h3 style="margin-top:14px">Notas</h3><div class="desc">${esc(it.notes)}</div>` : ''}
+    ${it.description ? `<h3 style="margin-top:14px">Sinopsis</h3><div class="desc">${esc(it.description)}</div>` : ''}
+    <div class="row" style="justify-content:space-between;margin-top:16px">
+      <button class="btn danger sm" data-d="del">Eliminar</button>
+      <button class="btn" data-d="edit">${I.pen}Editar</button>
+    </div>`);
+  el.addEventListener('click', async e => {
+    if (e.target.closest('[data-x]')) return closeLayer();
+    const sb = e.target.closest('#dstatus button');
+    if (sb) { setStatus(it, sb.dataset.v); $$('#dstatus button', el).forEach(b => b.classList.toggle('on', b === sb)); await saveItem(it); render(); }
+    const st = e.target.closest('#dstars button');
+    if (st) { const n = +st.dataset.n; it.rating = it.rating === n ? 0 : n; $$('#dstars button', el).forEach(b => b.classList.toggle('on', +b.dataset.n <= it.rating)); await saveItem(it); render(); }
+    const d = e.target.closest('[data-d]');
+    if (d?.dataset.d === 'edit') openForm(it, {});
+    if (d?.dataset.d === 'del') { if (await confirmBox('¿Eliminar este título?', it.title, 'Eliminar', 'Cancelar', true)) { await deleteItem(it.id); closeLayer(); toast('Eliminado'); render(); } }
+  });
+  $('#dlib', el).onchange = async e => { it.libraryId = e.target.value; await saveItem(it); toast('Movido ✓'); render(); };
+}
+function setStatus(it, s) { it.status = s; if (s === 'leido') it.readDate = it.readDate || Date.now(); else it.readDate = null; }
+
+/* =====================================================================
+   Vista: Colección
+   ===================================================================== */
+function filtered() {
+  const f = S.f; const q = norm(f.q);
+  let arr = S.items.filter(it => {
+    if (f.lib !== 'all' && it.libraryId !== f.lib) return false;
+    if (f.status && it.status !== f.status) return false;
+    if (f.incomplete && !it.incomplete) return false;
+    if (f.type && it.type !== f.type) return false;
+    if (f.publisher && it.publisher !== f.publisher) return false;
+    if (f.author && !(it.authors || []).includes(f.author)) return false;
+    if (f.series && it.series !== f.series) return false;
+    if (f.lang && (it.language || '') !== f.lang) return false;
+    if (f.minRating && (it.rating || 0) < f.minRating) return false;
+    if (q) { const hay = norm([it.title, it.subtitle, ...(it.authors || []), it.publisher, it.series, it.isbn, ...(it.tags || [])].join(' ')); if (!q.split(/\s+/).every(w => hay.includes(w))) return false; }
+    return true;
+  });
+  const by = {
+    added: (a, b) => (b.addedAt || 0) - (a.addedAt || 0),
+    title: (a, b) => a.title.localeCompare(b.title, 'es', { numeric: true }),
+    author: (a, b) => ((a.authors || [])[0] || '~').localeCompare((b.authors || [])[0] || '~', 'es'),
+    year: (a, b) => (b.year || 0) - (a.year || 0),
+    rating: (a, b) => (b.rating || 0) - (a.rating || 0),
+    series: (a, b) => (a.series || '~').localeCompare(b.series || '~', 'es') || (parseFloat(a.volume) || 0) - (parseFloat(b.volume) || 0),
+  }[f.sort] || (() => 0);
+  return arr.sort(by);
+}
+function activeFilterCount() { const f = S.f; return ['type', 'publisher', 'author', 'series', 'lang'].filter(k => f[k]).length + (f.minRating ? 1 : 0); }
+function renderColeccion() {
+  const items = filtered(); const f = S.f;
+  const uniq = k => [...new Set(S.items.flatMap(x => Array.isArray(x[k]) ? x[k] : [x[k]]).filter(Boolean))].sort((a, b) => String(a).localeCompare(String(b), 'es'));
+  const sel = (key, label, values, labels) => `<label class="f">${label}<select data-f="${key}"><option value="">Todos</option>${values.map(v => `<option value="${esc(v)}" ${String(f[key]) === String(v) ? 'selected' : ''}>${esc(labels ? labels[v] : v)}</option>`).join('')}</select></label>`;
+  const nInc = S.items.filter(x => x.incomplete).length;
+  const statusChips = [['', 'Todos'], ['leido', 'Leídos'], ['leyendo', 'Leyendo'], ['pendiente', 'Por leer']];
+  return `
+    <div class="topbar"><div class="brand"><img src="icons/icon-192.png" alt="">Estante</div><div class="spacer"></div>
+      <button class="btn lime sm" data-action="scan">${I.scan}Escanear</button></div>
+    <div class="chips">
+      <button class="chip ${f.lib === 'all' ? 'on' : ''}" data-lib="all">Todas</button>
+      ${S.libs.map(l => `<button class="chip ${f.lib === l.id ? 'on' : ''}" data-lib="${l.id}"><span class="dot" style="background:${l.color}"></span>${esc(l.icon + ' ' + l.name)}</button>`).join('')}
+    </div>
+    <div class="toolbar">
+      <div class="search">${I.search}<input id="q" type="search" placeholder="Buscar título, autor, serie…" value="${esc(f.q)}"></div>
+      <button class="btn ghost icon" data-action="filters" aria-label="Filtros" style="position:relative">${I.filter}${activeFilterCount() ? `<span style="position:absolute;top:-4px;right:-4px;background:#e4543f;color:#fff;border-radius:999px;font-size:11px;padding:1px 6px;text-shadow:none">${activeFilterCount()}</span>` : ''}</button>
+      <button class="btn ghost icon" data-action="layout" aria-label="Vista">${S.layout === 'grid' ? I.list : I.grid}</button>
+    </div>
+    <div class="chips">
+      ${statusChips.map(([k, v]) => `<button class="chip ${f.status === k && !f.incomplete ? 'on' : ''}" data-status="${k}">${v}</button>`).join('')}
+      ${nInc ? `<button class="chip ${f.incomplete ? 'on' : ''}" data-status="__inc">⚠ Por completar (${nInc})</button>` : ''}
+    </div>
+    <div class="glass pad filters ${S.showFilters ? '' : 'hidden'}">
+      <div class="grid3">
+        ${sel('type', 'Tipo', Object.keys(TYPES), TYPES)}
+        ${sel('author', 'Autor', uniq('authors'))}
+        ${sel('publisher', 'Editorial', uniq('publisher'))}
+        ${sel('series', 'Serie', uniq('series'))}
+        ${sel('lang', 'Idioma', uniq('language'))}
+        <label class="f">Calificación mínima<select data-f="minRating">${[0, 1, 2, 3, 4, 5].map(n => `<option value="${n}" ${+f.minRating === n ? 'selected' : ''}>${n ? '★'.repeat(n) + ' o más' : 'Cualquiera'}</option>`).join('')}</select></label>
+        <label class="f">Ordenar por<select data-f="sort">${Object.entries({ added: 'Agregados recientemente', title: 'Título', author: 'Autor', series: 'Serie y volumen', year: 'Año (reciente)', rating: 'Calificación' }).map(([k, v]) => `<option value="${k}" ${f.sort === k ? 'selected' : ''}>${v}</option>`).join('')}</select></label>
+      </div>
+      <div class="row" style="justify-content:flex-end;margin-top:10px"><button class="btn ghost sm" data-action="clearFilters">Limpiar filtros</button></div>
+    </div>
+    <div class="count">${items.length} ${items.length === 1 ? 'título' : 'títulos'}</div>
+    ${items.length ? (S.layout === 'grid' ? `<div class="grid">${items.map(cardHTML).join('')}</div>` : `<div class="list">${items.map(rowHTML).join('')}</div>`)
+      : `<div class="glass empty"><div class="big">📚</div><h3>${S.items.length ? 'Nada coincide con los filtros' : 'Tu estante está vacío'}</h3>
+         <p class="muted">${S.items.length ? 'Prueba quitando algún filtro.' : 'Escanea el código de barras de un libro o cómic para empezar.'}</p>
+         ${S.items.length ? '<button class="btn ghost" data-action="clearFilters">Limpiar filtros</button>' : `<button class="btn lime" data-action="scan">${I.scan}Escanear mi primer libro</button>`}</div>`}`;
+}
+const readIcon = it => it.status === 'leyendo' ? svg('<path d="M2 4h6a4 4 0 0 1 4 4v13a3 3 0 0 0-3-3H2zM22 4h-6a4 4 0 0 0-4 4v13a3 3 0 0 1 3-3h7z"/>') : I.check;
+function cardHTML(it) {
+  const badge = it.incomplete ? '<span class="badge warn">Por completar</span>' : (it.type !== 'libro' ? `<span class="badge">${TYPES[it.type] || ''}${it.volume ? ' #' + esc(it.volume) : ''}</span>` : (it.volume ? `<span class="badge">#${esc(it.volume)}</span>` : ''));
+  return `<div class="card" data-open="${it.id}">
+    <div style="position:relative">${coverHTML(it)}${badge}
+      <button class="readbtn ${it.status}" data-read="${it.id}" title="${STATUS[it.status]} — toca para marcar ${it.status === 'leido' ? 'no leído' : 'leído'}">${readIcon(it)}</button></div>
+    <div class="cardtext"><div class="t">${esc(it.title)}</div><div class="a">${esc((it.authors || []).join(', ') || it.publisher || '—')}</div></div>
+  </div>`;
+}
+function rowHTML(it) {
+  const lib = libById(it.libraryId);
+  return `<div class="glass lrow" data-open="${it.id}">${coverHTML(it)}
+    <div class="meta"><div class="t">${it.incomplete ? '⚠ ' : ''}${esc(it.title)}</div>
+      <div class="s">${esc([(it.authors || []).join(', '), it.publisher, it.year].filter(Boolean).join(' · '))}</div>
+      <div class="s">${esc([TYPES[it.type], it.series ? it.series + (it.volume ? ' #' + it.volume : '') : '', lib ? lib.icon + ' ' + lib.name : ''].filter(Boolean).join(' · '))}${it.rating ? ' · ' + '★'.repeat(it.rating) : ''}</div></div>
+    <button class="readbtn ${it.status}" data-read="${it.id}" title="${STATUS[it.status]}">${readIcon(it)}</button></div>`;
+}
+
+/* =====================================================================
+   Vista: Estadísticas
+   ===================================================================== */
+function renderStats() {
+  const items = S.statsLib === 'all' ? S.items : S.items.filter(x => x.libraryId === S.statsLib);
+  const n = items.length;
+  const head = `<h2 class="title">Estadísticas</h2>
+    <div class="chips"><button class="chip ${S.statsLib === 'all' ? 'on' : ''}" data-slib="all">Todas</button>
+    ${S.libs.map(l => `<button class="chip ${S.statsLib === l.id ? 'on' : ''}" data-slib="${l.id}"><span class="dot" style="background:${l.color}"></span>${esc(l.icon + ' ' + l.name)}</button>`).join('')}</div>`;
+  if (!n) return head + `<div class="glass empty"><div class="big">📊</div><h3>Aún no hay datos</h3><p class="muted">Agrega títulos para ver tus estadísticas.</p></div>`;
+  const cnt = (arr, key) => { const m = new Map(); arr.forEach(x => { const vs = Array.isArray(x[key]) ? x[key] : [x[key]]; vs.filter(Boolean).forEach(v => m.set(v, (m.get(v) || 0) + 1)); }); return [...m.entries()].sort((a, b) => b[1] - a[1]); };
+  const read = items.filter(x => x.status === 'leido'), reading = items.filter(x => x.status === 'leyendo'), pend = items.filter(x => x.status === 'pendiente');
+  const pagesRead = read.reduce((s, x) => s + (x.pages || 0), 0);
+  const pagesPend = pend.reduce((s, x) => s + (x.pages || 0), 0);
+  const value = items.reduce((s, x) => s + (x.price || 0), 0);
+  const priced = items.filter(x => x.price).length;
+  const now = new Date(); const yStart = new Date(now.getFullYear(), 0, 1).getTime();
+  const readThisYear = read.filter(x => (x.readDate || 0) >= yStart).length;
+  const addedThisMonth = items.filter(x => (x.addedAt || 0) >= new Date(now.getFullYear(), now.getMonth(), 1).getTime()).length;
+  const rated = items.filter(x => x.rating); const avg = rated.length ? rated.reduce((s, x) => s + x.rating, 0) / rated.length : 0;
+  const authors = cnt(items, 'authors');
+  const pct = v => n ? Math.round(v / n * 100) : 0;
+
+  const tiles = [
+    [fmt(n), 'Títulos en total', `${fmt(addedThisMonth)} agregados este mes`],
+    [pct(read.length) + '%', 'Leído', `${fmt(read.length)} de ${fmt(n)}`],
+    [fmt(readThisYear), `Terminados en ${now.getFullYear()}`, reading.length ? `${reading.length} en curso` : 'ninguno en curso'],
+    [fmt(pagesRead), 'Páginas leídas', pagesPend ? `${fmt(pagesPend)} pendientes en la pila` : ''],
+    [fmt(authors.length), 'Autores distintos', authors[0] ? `Más: ${authors[0][0]}` : ''],
+    [avg ? avg.toFixed(1) + ' ★' : '—', 'Calificación media', `${rated.length} calificados`],
+  ];
+  if (priced) tiles.push([money(value), 'Valor de la colección', `${priced} con precio`]);
+
+  // Barras
+  const bars = (rows, total, color = 'var(--aqua2)', fmtV = v => fmt(v)) => {
+    const max = Math.max(...rows.map(r => r[1]), 1);
+    return `<div class="bars">${rows.map(([k, v, extra]) => `<div class="bar" data-tip="${esc(k)}: ${fmtV(v)}${total ? ` (${Math.round(v / total * 100)}%)` : ''}${extra ? ' · ' + esc(extra) : ''}">
+      <span class="lab">${esc(k)}</span><span class="track"><span class="fill" style="display:block;width:${v / max * 100}%;background:${color}"></span></span><span class="val">${fmtV(v)}</span></div>`).join('')}</div>`;
+  };
+  const statusBar = `<div class="stack100">${[[read.length, 'var(--read)', 'Leído'], [reading.length, 'var(--reading)', 'Leyendo'], [pend.length, 'var(--pending)', 'Pendiente']]
+    .filter(r => r[0]).map(([v, c, l]) => `<div style="width:${v / n * 100}%;background:${c}" data-tip="${l}: ${v} (${pct(v)}%)"></div>`).join('')}</div>
+    <div class="legend"><span><i style="background:var(--read)"></i>Leído ${read.length} (${pct(read.length)}%)</span><span><i style="background:var(--reading)"></i>Leyendo ${reading.length}</span><span><i style="background:var(--pending)"></i>Pendiente ${pend.length} (${pct(pend.length)}%)</span></div>`;
+
+  // Por mes (12 meses): agregados vs leídos
+  const months = []; for (let i = 11; i >= 0; i--) { const d = new Date(now.getFullYear(), now.getMonth() - i, 1); months.push(d); }
+  const mKey = t => { const d = new Date(t); return d.getFullYear() * 12 + d.getMonth(); };
+  const addM = months.map(d => items.filter(x => x.addedAt && mKey(x.addedAt) === d.getFullYear() * 12 + d.getMonth()).length);
+  const readM = months.map(d => read.filter(x => x.readDate && mKey(x.readDate) === d.getFullYear() * 12 + d.getMonth()).length);
+  const mMax = Math.max(...addM, ...readM, 1);
+  const mName = d => d.toLocaleDateString('es-MX', { month: 'short' }).replace('.', '');
+  const monthly = `<div class="cols">${months.map((d, i) => `<div class="g" data-tip="${mName(d)} ${d.getFullYear()}: ${addM[i]} agregados · ${readM[i]} leídos">
+      <div class="c" style="height:${addM[i] / mMax * 100}%;background:#1a8fd8"></div><div class="c" style="height:${readM[i] / mMax * 100}%;background:var(--read)"></div></div>`).join('')}</div>
+    <div class="colx">${months.map(d => `<span>${mName(d)}</span>`).join('')}</div>
+    <div class="legend"><span><i style="background:#1a8fd8"></i>Agregados</span><span><i style="background:var(--read)"></i>Leídos</span></div>`;
+
+  // Por biblioteca con % leído
+  const byLib = S.libs.map(l => { const li = S.items.filter(x => x.libraryId === l.id); return [l.icon + ' ' + l.name, li.length, `${li.length ? Math.round(li.filter(x => x.status === 'leido').length / li.length * 100) : 0}% leído`]; }).filter(r => r[1]).sort((a, b) => b[1] - a[1]);
+  const byType = cnt(items, 'type').map(([k, v]) => [TYPES[k] || k, v]);
+  const decade = cnt(items.filter(x => x.year).map(x => ({ d: Math.floor(x.year / 10) * 10 + 's' })), 'd').sort((a, b) => a[0].localeCompare(b[0]));
+  const lang = cnt(items, 'language').map(([k, v]) => [({ es: 'Español', en: 'Inglés', ja: 'Japonés', fr: 'Francés', pt: 'Portugués', it: 'Italiano', de: 'Alemán' })[k] || k, v]);
+
+  // Huecos en series
+  const series = new Map();
+  items.forEach(x => { if (x.series && /^\d+(\.\d+)?$/.test(String(x.volume || '').trim())) { if (!series.has(x.series)) series.set(x.series, new Set()); series.get(x.series).add(Math.floor(parseFloat(x.volume))); } });
+  const gaps = [...series.entries()].map(([s, set]) => { const v = [...set].sort((a, b) => a - b); const max = v[v.length - 1]; const miss = []; for (let i = 1; i <= max; i++) if (!set.has(i)) miss.push(i); return { s, have: v.length, max, miss }; })
+    .filter(g => g.have >= 2 || g.miss.length).sort((a, b) => b.miss.length - a.miss.length || b.have - a.have);
+  const gapHTML = gaps.length ? gaps.slice(0, 12).map(g => `<div class="gap"><b>${esc(g.s)}</b> — tienes ${g.have} (hasta el #${g.max})${g.miss.length ? `<br><span style="color:#b0461f">Te faltan: ${g.miss.slice(0, 20).join(', ')}${g.miss.length > 20 ? '…' : ''}</span>` : ' <span style="color:var(--read)">✓ completa hasta ahí</span>'}</div>`).join('')
+    : '<p class="small muted">Captura "Serie" y "Volumen" en tus cómics/manga y aquí verás qué números te faltan.</p>';
+
+  // Pila de pendientes más antigua
+  const oldPend = pend.slice().sort((a, b) => (a.addedAt || 0) - (b.addedAt || 0)).slice(0, 5);
+
+  return head + `
+    <div class="tiles">${tiles.map(([v, l, s]) => `<div class="glass tile"><div class="v">${v}</div><div class="l">${l}</div><div class="sub">${esc(s || '')}</div></div>`).join('')}</div>
+    <div class="glass pad" style="margin-bottom:12px"><h3>Progreso de lectura</h3>${statusBar}</div>
+    <div class="panels">
+      <div class="glass pad"><h3>Ritmo: últimos 12 meses</h3>${monthly}</div>
+      ${S.statsLib === 'all' && byLib.length ? `<div class="glass pad"><h3>Por biblioteca</h3>${bars(byLib, n)}</div>` : ''}
+      <div class="glass pad"><h3>Por tipo</h3>${bars(byType, n)}</div>
+      <div class="glass pad"><h3>Autores con más títulos</h3>${bars(authors.slice(0, 8), 0)}</div>
+      <div class="glass pad"><h3>Editoriales principales</h3>${bars(cnt(items, 'publisher').slice(0, 8), n)}</div>
+      <div class="glass pad"><h3>Huecos en tus series</h3>${gapHTML}</div>
+      ${decade.length ? `<div class="glass pad"><h3>Por década de publicación</h3>${bars(decade, 0)}</div>` : ''}
+      ${lang.length > 1 ? `<div class="glass pad"><h3>Idiomas</h3>${bars(lang, n)}</div>` : ''}
+      ${oldPend.length ? `<div class="glass pad"><h3>Llevan más tiempo esperando</h3><div class="list">${oldPend.map(x => `<div class="res" data-open="${x.id}">${x.cover ? `<img src="${esc(x.cover)}" alt="" referrerpolicy="no-referrer" onerror="this.style.visibility='hidden'">` : '<div class="noimg"></div>'}<div class="grow"><div class="t">${esc(x.title)}</div><div class="s">Desde ${new Date(x.addedAt).toLocaleDateString('es-MX', { month: 'short', year: 'numeric' })}${x.pages ? ' · ' + x.pages + ' págs.' : ''}</div></div></div>`).join('')}</div></div>` : ''}
+    </div>`;
+}
+
+/* =====================================================================
+   Vista: Bibliotecas
+   ===================================================================== */
+function renderLibs() {
+  return `<h2 class="title">Bibliotecas</h2>
+    <div class="stack">
+      ${S.libs.map(l => { const li = S.items.filter(x => x.libraryId === l.id); const r = li.filter(x => x.status === 'leido').length; const p = li.length ? r / li.length * 100 : 0;
+        return `<div class="glass librow"><div class="libicon" style="background:linear-gradient(180deg,#fff,${l.color}55)">${l.icon}</div>
+        <div class="grow"><b>${esc(l.name)}</b>${S.settings.defaultLib === l.id ? ' <span class="small muted">· predeterminada</span>' : ''}<div class="small muted">${li.length} títulos · ${Math.round(p)}% leído</div><div class="prog"><div style="width:${p}%"></div></div></div>
+        <button class="btn ghost sm" data-libopen="${l.id}">Ver</button><button class="btn ghost sm" data-libedit="${l.id}">Editar</button></div>`; }).join('')}
+      <button class="btn lime" data-action="newLib" style="align-self:flex-start">${I.plus}Nueva biblioteca</button>
+    </div>`;
+}
+function openLibForm(l) {
+  const lib = Object.assign({ id: uid(), name: '', icon: '📚', color: LIB_COLORS[S.libs.length % LIB_COLORS.length], createdAt: Date.now() }, l || {});
+  const editing = !!l;
+  const el = openLayer(`<header><h3>${editing ? 'Editar biblioteca' : 'Nueva biblioteca'}</h3><button class="closex" data-x>✕</button></header>
+    <div class="stack">
+      <label class="f">Nombre<input id="lname" value="${esc(lib.name)}" placeholder="Ej. Manga, Casa de mamá, Pendientes…"></label>
+      <div><b class="small">Ícono</b><div class="emojis" style="margin-top:6px">${LIB_EMOJI.map(e => `<button data-emo="${e}" class="${e === lib.icon ? 'on' : ''}">${e}</button>`).join('')}</div></div>
+      <div><b class="small">Color</b><div class="colors" style="margin-top:6px">${LIB_COLORS.map(c => `<button data-col="${c}" class="${c === lib.color ? 'on' : ''}" style="background:${c}"></button>`).join('')}</div></div>
+      <label class="row small"><input type="checkbox" id="ldef" style="width:auto" ${S.settings.defaultLib === lib.id ? 'checked' : ''}> Usar como biblioteca predeterminada al escanear</label>
+      <div class="row" style="justify-content:space-between">
+        ${editing && S.libs.length > 1 ? '<button class="btn danger sm" data-ldel>Eliminar</button>' : '<span></span>'}
+        <button class="btn lime" data-lsave>${I.check}Guardar</button>
+      </div>
+    </div>`);
+  el.addEventListener('click', async e => {
+    if (e.target.closest('[data-x]')) return closeLayer();
+    const em = e.target.closest('[data-emo]'); if (em) { lib.icon = em.dataset.emo; $$('[data-emo]', el).forEach(b => b.classList.toggle('on', b === em)); }
+    const co = e.target.closest('[data-col]'); if (co) { lib.color = co.dataset.col; $$('[data-col]', el).forEach(b => b.classList.toggle('on', b === co)); }
+    if (e.target.closest('[data-lsave]')) {
+      lib.name = $('#lname', el).value.trim(); if (!lib.name) { toast('Ponle un nombre'); return; }
+      await saveLib(lib);
+      if ($('#ldef', el).checked) S.settings.defaultLib = lib.id; else if (S.settings.defaultLib === lib.id) S.settings.defaultLib = '';
+      LS.set('settings', S.settings); closeLayer(); render();
+    }
+    if (e.target.closest('[data-ldel]')) {
+      const li = S.items.filter(x => x.libraryId === lib.id);
+      const other = S.libs.find(x => x.id !== lib.id);
+      if (!await confirmBox(`¿Eliminar «${lib.name}»?`, li.length ? `Sus ${li.length} títulos se moverán a «${other.name}».` : 'Está vacía.', 'Eliminar', 'Cancelar', true)) return;
+      for (const it of li) { it.libraryId = other.id; await saveItem(it); }
+      S.libs = S.libs.filter(x => x.id !== lib.id); await DB.del('libs', lib.id);
+      if (S.f.lib === lib.id) S.f.lib = 'all'; if (S.settings.defaultLib === lib.id) { S.settings.defaultLib = ''; LS.set('settings', S.settings); }
+      closeLayer(); render();
+    }
+  });
+}
+
+/* =====================================================================
+   Vista: Ajustes (claves, respaldo, sincronización manual)
+   ===================================================================== */
+function renderAjustes() {
+  const st = S.settings;
+  return `<h2 class="title">Ajustes</h2>
+  <div class="stack">
+    <div class="glass pad stack">
+      <h3>Respaldo y paso entre celular y PC</h3>
+      <p class="small muted" style="margin:0">Tus datos viven en este dispositivo. Para tener la misma colección en el celular y la PC, exporta aquí e importa allá: la importación combina ambos lados y conserva la versión más reciente de cada título.</p>
+      <div class="row">
+        <button class="btn" data-action="export">${I.download}Exportar respaldo (.json)</button>
+        <button class="btn ghost" data-action="import">${I.upload}Importar / combinar</button>
+        <button class="btn ghost" data-action="csv">${I.download}Exportar CSV (Excel)</button>
+      </div>
+      <p class="small muted" style="margin:0" id="storageInfo"></p>
+    </div>
+    <div class="glass pad stack">
+      <h3>Claves de API (opcionales y gratuitas)</h3>
+      <label class="f">Comic Vine — para buscar cómics por título <input data-set="cvKey" value="${esc(st.cvKey)}" placeholder="Pega tu API key"></label>
+      <p class="small muted" style="margin:-4px 0 0">Créala gratis en <a href="https://comicvine.gamespot.com/api/" target="_blank" rel="noopener">comicvine.gamespot.com/api</a> (requiere cuenta).</p>
+      <label class="f">Google Books — evita el límite de consultas sin clave <input data-set="gbKey" value="${esc(st.gbKey)}" placeholder="Pega tu API key"></label>
+      <p class="small muted" style="margin:-4px 0 0">En <a href="https://console.cloud.google.com/apis/library/books.googleapis.com" target="_blank" rel="noopener">Google Cloud Console</a>: habilita "Books API" y crea una clave. Sin ella también funciona, pero Google puede rechazar consultas en horas pico; Open Library sigue respondiendo.</p>
+    </div>
+    <div class="glass pad stack">
+      <h3>Preferencias</h3>
+      <div class="grid2">
+        <label class="f">Tipo por defecto<select data-set="defaultType">${Object.entries(TYPES).map(([k, v]) => `<option value="${k}" ${st.defaultType === k ? 'selected' : ''}>${v}</option>`).join('')}</select></label>
+        <label class="f">Biblioteca al escanear<select data-set="defaultLib"><option value="">La que tenga seleccionada</option>${S.libs.map(l => `<option value="${l.id}" ${st.defaultLib === l.id ? 'selected' : ''}>${esc(l.icon + ' ' + l.name)}</option>`).join('')}</select></label>
+      </div>
+    </div>
+    <div class="glass pad stack">
+      <h3>Fuentes de datos</h3>
+      <p class="small" style="margin:0">ISBN → <b>Google Books</b> + <b>Open Library</b> en paralelo (y <b>openBD</b> para ediciones japonesas 978-4). Portadas de Open Library Covers y Google. Cómics por título → <b>Comic Vine</b>. Todo gratuito.</p>
+    </div>
+    <div class="glass pad stack">
+      <h3>Zona de cuidado</h3>
+      <div class="row"><button class="btn danger sm" data-action="wipe">Borrar toda la colección de este dispositivo</button></div>
+    </div>
+    <p class="small" style="color:#fff;text-shadow:0 1px 2px rgba(0,60,120,.5);text-align:center">Estante · uso personal · los datos no salen de tu dispositivo</p>
+  </div>`;
+}
+async function exportJSON() {
+  const data = { app: 'estante', version: 1, exportedAt: new Date().toISOString(), libs: S.libs, items: S.items };
+  const name = `estante-respaldo-${new Date().toISOString().slice(0, 10)}.json`;
+  downloadBlob(new Blob([JSON.stringify(data)], { type: 'application/json' }), name, true);
+}
+async function downloadBlob(blob, name, allowShare) {
+  const file = new File([blob], name, { type: blob.type });
+  if (allowShare && navigator.canShare?.({ files: [file] }) && /Android|iPhone|iPad/i.test(navigator.userAgent)) {
+    try { await navigator.share({ files: [file], title: name }); return; } catch (e) { if (e.name === 'AbortError') return; }
+  }
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500);
+  toast('Archivo descargado');
+}
+function exportCSV() {
+  const cols = [['title', 'Título'], ['subtitle', 'Subtítulo'], ['authors', 'Autores'], ['publisher', 'Editorial'], ['type', 'Tipo'], ['series', 'Serie'], ['volume', 'Volumen'], ['year', 'Año'], ['pages', 'Páginas'], ['language', 'Idioma'], ['isbn', 'ISBN'], ['library', 'Biblioteca'], ['status', 'Estado'], ['rating', 'Calificación'], ['readDate', 'Terminado'], ['price', 'Precio'], ['tags', 'Etiquetas'], ['notes', 'Notas'], ['addedAt', 'Agregado']];
+  const val = (it, k) => {
+    if (k === 'library') return libById(it.libraryId)?.name || '';
+    if (k === 'type') return TYPES[it.type] || it.type; if (k === 'status') return STATUS[it.status] || '';
+    if (k === 'readDate' || k === 'addedAt') return it[k] ? new Date(it[k]).toISOString().slice(0, 10) : '';
+    const v = it[k]; return Array.isArray(v) ? v.join('; ') : (v ?? '');
+  };
+  const q = s => `"${String(s).replace(/"/g, '""')}"`;
+  const csv = '﻿' + [cols.map(c => q(c[1])).join(','), ...S.items.map(it => cols.map(c => q(val(it, c[0]))).join(','))].join('\r\n');
+  downloadBlob(new Blob([csv], { type: 'text/csv' }), `estante-${new Date().toISOString().slice(0, 10)}.csv`, true);
+}
+async function importJSON(file) {
+  let data; try { data = JSON.parse(await file.text()); } catch { toast('El archivo no es un respaldo válido'); return; }
+  if (!data || !Array.isArray(data.items)) { toast('El archivo no es un respaldo de Estante'); return; }
+  let added = 0, updated = 0;
+  // Bibliotecas creadas por separado en cada dispositivo con el mismo nombre se unifican
+  const remap = {};
+  for (const l of data.libs || []) {
+    if (libById(l.id)) continue;
+    const same = S.libs.find(x => norm(x.name) === norm(l.name));
+    if (same) remap[l.id] = same.id;
+  }
+  data.libs = (data.libs || []).filter(l => !remap[l.id]);
+  data.items.forEach(it => { if (remap[it.libraryId]) it.libraryId = remap[it.libraryId]; });
+  for (const l of data.libs || []) { const cur = libById(l.id); if (!cur || (l.updatedAt || 0) > (cur.updatedAt || 0)) { const i = S.libs.findIndex(x => x.id === l.id); if (i >= 0) S.libs[i] = l; else S.libs.push(l); } }
+  await DB.putMany('libs', S.libs);
+  const changed = [];
+  for (const it of data.items) {
+    const cur = S.items.find(x => x.id === it.id);
+    if (!cur) { S.items.push(it); changed.push(it); added++; }
+    else if ((it.updatedAt || 0) > (cur.updatedAt || 0)) { Object.assign(cur, it); changed.push(cur); updated++; }
+  }
+  for (const it of changed) if (!libById(it.libraryId)) it.libraryId = S.libs[0].id;
+  await DB.putMany('items', changed);
+  toast(`Importado: ${added} nuevos, ${updated} actualizados`, 3500); render();
+}
+$('#fileImport').addEventListener('change', e => { const f = e.target.files[0]; e.target.value = ''; if (f) importJSON(f); });
+
+/* =====================================================================
+   Render + eventos
+   ===================================================================== */
+function render() {
+  const main = $('#main');
+  const keepFocus = document.activeElement?.id === 'q' ? document.activeElement.selectionStart : null;
+  main.innerHTML = ({ coleccion: renderColeccion, stats: renderStats, libs: renderLibs, ajustes: renderAjustes }[S.view] || renderColeccion)();
+  $$('[data-nav]').forEach(b => b.classList.toggle('on', b.dataset.nav === S.view));
+  if (keepFocus != null) { const q = $('#q'); if (q) { q.focus(); q.setSelectionRange(keepFocus, keepFocus); } }
+  if (S.view === 'ajustes') storageInfo();
+}
+async function storageInfo() {
+  const el = $('#storageInfo'); if (!el || !navigator.storage?.estimate) return;
+  const e = await navigator.storage.estimate(); const p = await navigator.storage.persisted?.();
+  el.textContent = `${S.items.length} títulos · ${(e.usage / 1048576).toFixed(1)} MB usados · almacenamiento ${p ? 'persistente ✓' : 'normal (el navegador podría limpiarlo si falta espacio; exporta respaldos)'}`;
+}
+function go(view) { S.view = view; window.scrollTo(0, 0); render(); if (location.hash.slice(1) !== view) history.replaceState(null, '', '#' + view); }
+
+document.addEventListener('click', async e => {
+  const t = e.target;
+  const nav = t.closest('[data-nav]'); if (nav) return go(nav.dataset.nav);
+  const rb = t.closest('[data-read]');
+  if (rb) { e.stopPropagation(); const it = S.items.find(x => x.id === rb.dataset.read); setStatus(it, it.status === 'leido' ? 'pendiente' : 'leido'); await saveItem(it); toast(it.status === 'leido' ? `✓ «${it.title}» marcado como leído` : 'Marcado como no leído', 1600); render(); return; }
+  const op = t.closest('[data-open]'); if (op && !t.closest('.sheet')) return openDetail(op.dataset.open);
+  if (op && t.closest('.sheet') === null) return;
+  const lb = t.closest('[data-lib]'); if (lb) { S.f.lib = lb.dataset.lib; saveFilters(); return render(); }
+  const sl = t.closest('[data-slib]'); if (sl) { S.statsLib = sl.dataset.slib; return render(); }
+  const sc = t.closest('[data-status]'); if (sc) { const v = sc.dataset.status; if (v === '__inc') { S.f.incomplete = !S.f.incomplete; S.f.status = ''; } else { S.f.status = v; S.f.incomplete = false; } saveFilters(); return render(); }
+  const lo = t.closest('[data-libopen]'); if (lo) { S.f.lib = lo.dataset.libopen; saveFilters(); return go('coleccion'); }
+  const le = t.closest('[data-libedit]'); if (le) return openLibForm(libById(le.dataset.libedit));
+  const a = t.closest('[data-action]')?.dataset.action; if (!a) return;
+  if (a === 'add') openAdd();
+  if (a === 'scan') Scanner.open();
+  if (a === 'filters') { S.showFilters = !S.showFilters; render(); }
+  if (a === 'layout') { S.layout = S.layout === 'grid' ? 'list' : 'grid'; LS.set('layout', S.layout); render(); }
+  if (a === 'clearFilters') { Object.assign(S.f, { q: '', status: '', type: '', publisher: '', author: '', series: '', lang: '', minRating: 0, incomplete: false }); saveFilters(); render(); }
+  if (a === 'newLib') openLibForm();
+  if (a === 'export') exportJSON();
+  if (a === 'csv') exportCSV();
+  if (a === 'import') $('#fileImport').click();
+  if (a === 'wipe') {
+    if (!await confirmBox('¿Borrar TODA la colección de este dispositivo?', 'No se puede deshacer. Exporta un respaldo antes si lo necesitas.', 'Borrar todo', 'Cancelar', true)) return;
+    await DB.clear('items'); S.items = []; toast('Colección borrada'); render();
+  }
+});
+document.addEventListener('input', e => {
+  if (e.target.id === 'q') { S.f.q = e.target.value; clearTimeout(window.__qt); window.__qt = setTimeout(render, 160); }
+});
+document.addEventListener('change', e => {
+  const f = e.target.dataset.f; if (f) { S.f[f] = f === 'minRating' ? +e.target.value : e.target.value; saveFilters(); render(); return; }
+  const s = e.target.dataset.set; if (s) { S.settings[s] = e.target.value.trim(); LS.set('settings', S.settings); Scanner.updateTarget(); toast('Guardado', 1200); }
+});
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { if ($('#scanner')) Scanner.close(); else closeLayer(); } });
+window.addEventListener('hashchange', () => { const v = location.hash.slice(1); if (['coleccion', 'stats', 'libs', 'ajustes'].includes(v) && v !== S.view) { S.view = v; render(); } });
+// Tooltips de gráficas
+(() => {
+  let tip;
+  document.addEventListener('pointermove', e => {
+    const el = e.target.closest?.('[data-tip]');
+    if (!el) { tip?.remove(); tip = null; return; }
+    if (!tip) { tip = document.createElement('div'); tip.className = 'tip'; document.body.appendChild(tip); }
+    tip.textContent = el.dataset.tip;
+    const x = Math.min(e.clientX + 12, innerWidth - tip.offsetWidth - 8); tip.style.left = x + 'px'; tip.style.top = (e.clientY - 36) + 'px';
+  });
+})();
+// Burbujas
+(() => {
+  const b = $('#bubbles'); if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  for (let i = 0; i < 10; i++) {
+    const d = document.createElement('div'); d.className = 'bubble'; const s = 14 + Math.random() * 46;
+    Object.assign(d.style, { width: s + 'px', height: s + 'px', left: Math.random() * 100 + '%', animationDuration: 18 + Math.random() * 22 + 's', animationDelay: -Math.random() * 30 + 's', opacity: .55 + Math.random() * .4 });
+    b.appendChild(d);
+  }
+})();
+
+/* =====================================================================
+   Arranque
+   ===================================================================== */
+(async function init() {
+  try { await DB.open(); [S.items, S.libs] = await Promise.all([DB.all('items'), DB.all('libs')]); }
+  catch (e) { $('#main').innerHTML = '<div class="glass pad">No se pudo abrir el almacenamiento local de este navegador (¿modo incógnito?).</div>'; return; }
+  if (!S.libs.length) { const l = { id: uid(), name: 'Mi biblioteca', icon: '📚', color: '#1a8fd8', createdAt: Date.now() }; await saveLib(l); }
+  S.libs.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+  if (S.f.lib !== 'all' && !libById(S.f.lib)) S.f.lib = 'all';
+  const h = location.hash.slice(1); if (['coleccion', 'stats', 'libs', 'ajustes'].includes(h)) S.view = h;
+  render();
+  navigator.storage?.persist?.();
+  if ('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('sw.js').catch(() => { });
+  // Atajos del ícono (manifest shortcuts)
+  const p = new URLSearchParams(location.search);
+  if (p.get('a') === 'scan') Scanner.open();
+})();
+</script>
+</body>
+</html>
