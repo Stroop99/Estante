@@ -1,5 +1,5 @@
 /* Estante – service worker: app offline + caché de portadas */
-const VERSION = 'estante-v2';
+const VERSION = 'estante-v3';
 const SHELL = ['./', './index.html', './manifest.webmanifest', './icons/icon-192.png', './icons/icon-512.png',
   './icons/maskable-512.png', './vendor/barcode-ponyfill.js', './vendor/zxing_reader.wasm'];
 const COVERS = 'estante-covers';

@@ -126,8 +126,8 @@ label.f{display:flex;flex-direction:column;gap:4px;font-size:12.5px;font-weight:
 .card{cursor:pointer;display:flex;flex-direction:column;gap:6px;min-width:0}
 .cover{position:relative;aspect-ratio:2/3;border-radius:10px;overflow:hidden;background:#cfe9fb;
   box-shadow:0 6px 14px rgba(0,50,100,.3),0 0 0 1px rgba(255,255,255,.6)}
-.cover img{width:100%;height:100%;object-fit:cover;display:block}
-.cover::after{content:"";position:absolute;inset:0;background:linear-gradient(120deg,rgba(255,255,255,.35) 0,rgba(255,255,255,0) 38%);pointer-events:none}
+.cover img{position:absolute;inset:0;z-index:1;width:100%;height:100%;object-fit:cover;display:block}
+.cover::after{content:"";position:absolute;inset:0;z-index:2;background:linear-gradient(120deg,rgba(255,255,255,.35) 0,rgba(255,255,255,0) 38%);pointer-events:none}
 .cover .ph{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:center;align-items:center;padding:10px;text-align:center;color:#fff;
   font-weight:700;font-size:13px;line-height:1.2;text-shadow:0 1px 2px rgba(0,0,0,.35)}
 .cover .ph small{font-weight:500;opacity:.9;margin-top:6px;font-size:11px}
@@ -335,6 +335,7 @@ details.more summary{cursor:pointer;font-weight:600;color:var(--aqua3);font-size
 <div id="layer"></div>
 <input type="file" id="fileBarcode" accept="image/*" class="hidden">
 <input type="file" id="fileCover" accept="image/*" class="hidden">
+<input type="file" id="fileOCR" accept="image/*" class="hidden">
 <input type="file" id="fileImport" accept="application/json,.json" class="hidden">
 
 <script>
@@ -557,8 +558,15 @@ const Sources = {
     return r.json();
   },
   async google(isbn) {
+    const i10 = ISBN.to10(isbn);
     let d = await Sources.gbFetch(`isbn:${isbn}`, '&maxResults=3');
-    if (!d.items?.length) { const i10 = ISBN.to10(isbn); if (i10) d = await Sources.gbFetch(`isbn:${i10}`, '&maxResults=3'); }
+    if (!d.items?.length && i10) d = await Sources.gbFetch(`isbn:${i10}`, '&maxResults=3');
+    if (!d.items?.length) {
+      // a veces el índice "isbn:" no tiene la edición pero la búsqueda libre sí; solo se acepta si el ISBN coincide
+      const d2 = await Sources.gbFetch(isbn, '&maxResults=10');
+      const hit = (d2.items || []).find(x => (x.volumeInfo.industryIdentifiers || []).some(i => i.identifier === isbn || i.identifier === i10));
+      d = { items: hit ? [hit] : [] };
+    }
     if (!d.items?.length) return null;
     return Sources.gbMap(d.items[0].volumeInfo);
   },
@@ -672,6 +680,48 @@ function guessType(m) {
   if (/graphic novel|novela grafica/.test(txt)) return 'novela_grafica';
   return S.settings.defaultType || 'libro';
 }
+
+/* =====================================================================
+   OCR: lee el título de una foto (Tesseract.js, corre en el propio dispositivo)
+   ===================================================================== */
+const OCR = {
+  worker: null,
+  async getWorker(onProgress) {
+    if (this.worker) return this.worker;
+    onProgress?.('Descargando lector de texto (solo la primera vez, ~5 MB)…');
+    if (!window.Tesseract) await loadScript('https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js');
+    this.worker = await Tesseract.createWorker(['spa', 'eng'], 1, {
+      workerPath: 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/worker.min.js',
+      corePath: 'https://cdn.jsdelivr.net/npm/tesseract.js-core@5.1.1',
+      logger: m => { if (m.status === 'recognizing text') onProgress?.(`Leyendo texto… ${Math.round(m.progress * 100)}%`); },
+    });
+    return this.worker;
+  },
+  /** Prepara la imagen: tamaño razonable, escala de grises y más contraste */
+  async prep(file) {
+    const bmp = await createImageBitmap(file);
+    const k = Math.min(1, 1800 / Math.max(bmp.width, bmp.height));
+    const c = document.createElement('canvas'); c.width = Math.round(bmp.width * k); c.height = Math.round(bmp.height * k);
+    const g = c.getContext('2d'); g.filter = 'grayscale(1) contrast(1.35)'; g.drawImage(bmp, 0, 0, c.width, c.height);
+    return c;
+  },
+  /** Devuelve el texto más probable del título: las líneas con letra más grande */
+  async title(file, onProgress) {
+    const w = await this.getWorker(onProgress);
+    onProgress?.('Leyendo texto…');
+    const { data } = await w.recognize(await this.prep(file), {}, { blocks: true, text: true });
+    const lines = [];
+    (data.blocks || []).forEach(b => (b.paragraphs || []).forEach(p => (p.lines || []).forEach(l => lines.push(l))));
+    const clean = t => String(t || '').replace(/[^0-9A-Za-zÀ-ÿ'’:\-\s]/g, ' ').replace(/\s+/g, ' ').trim();
+    const good = lines.map(l => ({ t: clean(l.text), h: l.bbox.y1 - l.bbox.y0, y: l.bbox.y0, c: l.confidence }))
+      .filter(l => l.c > 45 && (l.t.match(/[A-Za-zÀ-ÿ]/g) || []).length >= 3);
+    if (!good.length) { const t = clean(data.text).split(' ').slice(0, 6).join(' '); return t.length >= 3 ? t : ''; }
+    const maxH = Math.max(...good.map(l => l.h));
+    const big = good.filter(l => l.h >= maxH * 0.62).sort((a, b) => a.y - b.y).slice(0, 3);
+    return big.map(l => l.t).join(' ').slice(0, 70).trim();
+  },
+  nice: t => t.toLowerCase().replace(/(^|\s|[-:'’])([a-zà-ÿ])/g, (m, a, b) => a + b.toUpperCase()),
+};
 
 /* =====================================================================
    Escáner de códigos de barras
@@ -818,6 +868,18 @@ function currentAddLib() {
 }
 const findByCode = code => { const i = ISBN.parse(code); return S.items.filter(x => x.isbn && (x.isbn === code || (i && x.isbn === i))); };
 
+function issnFrom977(code) {
+  if (!/^977\d{10}$/.test(code)) return null;
+  const b = code.slice(3, 10); let t = 0; for (let i = 0; i < 7; i++) t += +b[i] * (8 - i);
+  const c = (11 - t % 11) % 11; return b.slice(0, 4) + '-' + b.slice(4) + (c === 10 ? 'X' : c);
+}
+function nonIsbnNotice(code) {
+  const issn = issnFrom977(code);
+  const why = issn
+    ? `El código <b>${esc(code)}</b> es de <b>publicación periódica</b> (ISSN ${issn}), como muchos cómics y mangas de puesto de periódicos. Ese código identifica la colección, no el número, y ninguna base gratuita registra los números sueltos con él.`
+    : `El código <b>${esc(code)}</b> no es un ISBN: es un UPC/EAN de tienda, típico de cómics sueltos. Las bases de libros no lo registran.`;
+  return `${why}<br><b>Toma una foto de la portada</b> y la app lee el título y lo busca, o escríbelo abajo.`;
+}
 async function processCode(raw) {
   const code = ISBN.clean(raw);
   const isbn = ISBN.parse(code);
@@ -828,7 +890,7 @@ async function processCode(raw) {
     if (!ok) { openDetail(d.id); return; }
   }
   if (!isbn && !proxyBase()) {
-    openForm({ isbn: code, type: 'comic' }, { notice: `El código <b>${esc(code)}</b> no es un ISBN (parece un UPC/EAN, típico de cómics sueltos). Búscalo por título abajo o captúralo a mano.${reportHint([])}`, noticeKind: 'warn', openSearch: true });
+    openForm({ isbn: code, type: 'comic' }, { notice: nonIsbnNotice(code), noticeKind: 'warn', openSearch: true, suggestOCR: true });
     return;
   }
   showLoading(`Buscando ${isbn ? 'ISBN ' + isbn : 'código ' + code}…`);
@@ -837,7 +899,7 @@ async function processCode(raw) {
   closeLayer();
   const why = `<details style="margin-top:6px"><summary style="cursor:pointer;font-weight:600">Qué respondió cada base</summary>${reportHTML(r.report)}</details>`;
   if (r.meta && r.meta.title) openForm({ ...r.meta, isbn: isbn || code }, { notice: `Datos encontrados en ${esc(r.meta.source)}. Revisa y guarda.${why}`, noticeKind: 'ok' });
-  else openForm({ isbn: isbn || code, type: isbn ? undefined : 'comic' }, { notice: `No encontré <b>${esc(isbn || code)}</b>. Busca por título o captura los datos a mano.${reportHint(r.report)}${why}`, noticeKind: 'warn', openSearch: true });
+  else openForm({ isbn: isbn || code, type: isbn ? undefined : 'comic' }, { notice: (isbn ? `No encontré el ISBN <b>${esc(isbn)}</b> en ninguna base. <b>Toma una foto de la portada</b> para leer el título y buscarlo, o escríbelo abajo.` : nonIsbnNotice(code)) + reportHint(r.report) + why, noticeKind: 'warn', openSearch: true, suggestOCR: true });
 }
 
 async function burstAdd(raw) {
@@ -911,7 +973,8 @@ function openAdd(mode) {
     <div class="addgrid">
       <button class="addopt" data-add="scan"><span class="ic l">${I.scan}</span><b>Escanear</b><span>Con la cámara</span></button>
       <button class="addopt" data-add="photo"><span class="ic">${I.image}</span><b>Foto del código</b><span>Desde una imagen</span></button>
-      <button class="addopt" data-add="search"><span class="ic">${I.search}</span><b>Buscar por título</b><span>Google, Open Library, Comic Vine</span></button>
+      <button class="addopt" data-add="ocr"><span class="ic l">${I.camera}</span><b>Foto de portada</b><span>Lee el título y lo busca</span></button>
+      <button class="addopt" data-add="search"><span class="ic">${I.search}</span><b>Buscar por título</b><span>En todas las bases</span></button>
       <button class="addopt" data-add="manual"><span class="ic">${I.pen}</span><b>Captura manual</b><span>Llenar los datos tú</span></button>
     </div>
     <div class="glass pad" style="margin-top:14px">
@@ -928,6 +991,7 @@ function openAdd(mode) {
     if (a === 'photo') { $('#fileBarcode').click(); }
     if (a === 'manual') openForm({}, {});
     if (a === 'search') openForm({}, { openSearch: true });
+    if (a === 'ocr') { openForm({}, { openSearch: true }); $('#fileOCR').click(); }
   });
   const go = () => {
     const v = $('#isbnIn').value; const c = ISBN.clean(v);
@@ -960,6 +1024,8 @@ function openForm(data = {}, opts = {}) {
         <input id="sq" class="grow" style="width:auto" placeholder="Título, autor o serie" value="${esc(opts.query || '')}">
         <button class="btn sm" id="sgo">Buscar</button>
       </div>
+      <button type="button" class="btn ${opts.suggestOCR ? 'lime' : 'ghost'} sm" id="socr" style="margin-top:8px">${I.camera}Leer el título con una foto</button>
+      <div class="small muted" id="socrMsg" style="margin-top:4px">Funciona mejor con la portadilla (primera página interior) o la portada de frente y con buena luz.</div>
       <div class="results" id="sres"></div>
     </details>
     <form id="itemForm" class="stack" autocomplete="off">
@@ -1075,6 +1141,21 @@ function openForm(data = {}, opts = {}) {
     refreshCover(); el.querySelector('details.more').open = false;
     toast('Datos aplicados ✓'); form.scrollIntoView({ behavior: 'smooth' });
   }
+  $('#socr', el).onclick = () => $('#fileOCR').click();
+  $('#fileOCR').onchange = async e => {
+    const f = e.target.files[0]; e.target.value = ''; if (!f) return;
+    const msg = $('#socrMsg', el); el.querySelector('details.more').open = true;
+    try {
+      const photo = await resizeImage(f, 700);
+      if (!formCover) { formCover = photo; refreshCover(); }
+      const txt = await OCR.title(f, p => { msg.textContent = p; });
+      if (!txt) { msg.innerHTML = '<span style="color:#b0461f">No pude leer texto claro en la foto. Prueba con la portadilla interior, más cerca y con buena luz, o escribe el título.</span>'; return; }
+      msg.innerHTML = `Leí: <b>${esc(txt)}</b>. Puedes corregirlo y volver a buscar.`;
+      $('#sq', el).value = txt;
+      if (!form.title.value) { form.title.value = OCR.nice(txt); refreshCover(); }
+      doSearch();
+    } catch (err) { msg.innerHTML = `<span style="color:#b0461f">${esc(explainErr(err))}. El lector de texto se descarga la primera vez, así que necesitas internet.</span>`; }
+  };
   $('#fileCover').onchange = async e => { const f = e.target.files[0]; e.target.value = ''; if (!f) return; formCover = await resizeImage(f, 700); refreshCover(); };
   form.addEventListener('submit', async e => {
     e.preventDefault();
