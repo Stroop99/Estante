@@ -457,7 +457,7 @@ const S = {
   layout: LS.get('layout', 'grid'),
   showFilters: false,
   statsLib: 'all',
-  settings: Object.assign({ gbKey: '', cvKey: '', defaultLib: '', defaultType: 'libro' }, LS.get('settings', {})),
+  settings: Object.assign({ gbKey: '', cvKey: '', proxyUrl: '', defaultLib: '', defaultType: 'libro' }, LS.get('settings', {})),
 };
 const libById = id => S.libs.find(l => l.id === id);
 const saveFilters = () => { const { q, ...rest } = S.f; LS.set('filters', rest); };
@@ -505,7 +505,37 @@ function imgOK(url, ms = 7000) {
 
 /* =====================================================================
    Fuentes de metadatos
+   Cada fuente devuelve un reporte {name, status:'ok'|'notfound'|'error'|'skip', detail, data}
+   para que la app pueda explicar exactamente por qué no encontró algo.
    ===================================================================== */
+class SrcError extends Error { constructor(http, msg) { super(msg || ('HTTP ' + http)); this.http = http; } }
+function explainErr(e) {
+  const h = e?.http, m = String(e?.message || e || '').trim();
+  const extra = m && !/^HTTP \d+$/.test(m) ? ' — ' + m.slice(0, 120) : '';
+  if (h === 'CV-100') return 'Error CV-100 · La clave de Comic Vine no es válida';
+  if (h === 'CV-107') return 'Error CV-107 · Comic Vine: límite de consultas alcanzado, espera unos minutos';
+  if (typeof h === 'string') return `Error ${h}` + extra;
+  if (h === 429 || (!h && /quota|rate limit|too many/i.test(m))) return 'Error 429 · Límite de consultas alcanzado' + extra;
+  if (h === 403) return 'Error 403 · Acceso rechazado (clave inválida, API no habilitada o clave restringida a otro sitio)' + extra;
+  if (h === 400) return 'Error 400 · Petición rechazada' + extra;
+  if (h === 401) return 'Error 401 · Credenciales inválidas';
+  if (h === 404) return 'Error 404 · Dirección no encontrada';
+  if (h >= 500) return `Error ${h} · Falla en el servidor de la base` + extra;
+  if (h) return `Error ${h}` + extra;
+  if (e?.name === 'AbortError' || m === 'timeout') return 'Error TIEMPO · No respondió a tiempo';
+  if (m === 'jsonp') return 'Error CARGA · No se pudo cargar (bloqueado o sin conexión)';
+  if (m === 'nokey') return 'Error SIN-CLAVE · Falta la clave en Ajustes';
+  if (e instanceof TypeError) return 'Error RED · El navegador bloqueó la consulta o no hay conexión';
+  return 'Error · ' + m.slice(0, 160);
+}
+async function runSrc(name, fn) {
+  const t = performance.now();
+  try { const data = await fn(); return { name, status: data && data.title ? 'ok' : 'notfound', data: data || null, ms: Math.round(performance.now() - t) }; }
+  catch (e) { return { name, status: 'error', detail: explainErr(e), ms: Math.round(performance.now() - t) }; }
+}
+const proxyBase = () => String(S.settings.proxyUrl || '').trim().replace(/\/+$/, '');
+const cleanRetailTitle = t => String(t || '').replace(/\s*[\(\[][^\)\]]*(edition|edición|paperback|hardcover|tapa|pasta|rústica|libro)[^\)\]]*[\)\]]/ig, '').replace(/\s+-\s+(paperback|hardcover)$/i, '').trim();
+
 const Sources = {
   async openLibrary(isbn) {
     const d = await jsonp(`https://openlibrary.org/api/books?bibkeys=ISBN:${isbn}&jscmd=data`);
@@ -518,13 +548,17 @@ const Sources = {
       pages: b.number_of_pages,
       cover: b.cover?.large || b.cover?.medium,
       categories: (b.subjects || []).slice(0, 4).map(s => s.name),
-      src: 'Open Library'
     };
   },
-  async google(isbn) {
+  async gbFetch(q, extra = '') {
     const key = S.settings.gbKey ? `&key=${encodeURIComponent(S.settings.gbKey)}` : '';
-    let d = await getJSON(`https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}&maxResults=3${key}`);
-    if (!d.items?.length) { const i10 = ISBN.to10(isbn); if (i10) d = await getJSON(`https://www.googleapis.com/books/v1/volumes?q=isbn:${i10}&maxResults=3${key}`); }
+    const r = await fetchT(`https://www.googleapis.com/books/v1/volumes?q=${q}${extra}${key}`);
+    if (!r.ok) { let msg = ''; try { msg = (await r.json()).error?.message || ''; } catch { } throw new SrcError(r.status, msg); }
+    return r.json();
+  },
+  async google(isbn) {
+    let d = await Sources.gbFetch(`isbn:${isbn}`, '&maxResults=3');
+    if (!d.items?.length) { const i10 = ISBN.to10(isbn); if (i10) d = await Sources.gbFetch(`isbn:${i10}`, '&maxResults=3'); }
     if (!d.items?.length) return null;
     return Sources.gbMap(d.items[0].volumeInfo);
   },
@@ -537,41 +571,61 @@ const Sources = {
       year: (String(v.publishedDate || '').match(/\d{4}/) || [])[0], pages: v.pageCount,
       cover, categories: v.categories || [], language: v.language, description: v.description,
       isbn: (ids.find(i => i.type === 'ISBN_13') || ids.find(i => i.type === 'ISBN_10') || {}).identifier,
-      src: 'Google Books'
     };
   },
   async openBD(isbn) {
-    const d = await getJSON(`https://api.openbd.jp/v1/get?isbn=${isbn}`);
-    const s = d?.[0]?.summary; if (!s) return null;
+    const r = await fetchT(`https://api.openbd.jp/v1/get?isbn=${isbn}`); if (!r.ok) throw new SrcError(r.status);
+    const d = await r.json(); const s = d?.[0]?.summary; if (!s) return null;
     return {
       title: s.title, authors: splitList(String(s.author || '').replace(/／/g, ',')), publisher: s.publisher,
-      year: String(s.pubdate || '').slice(0, 4), cover: s.cover, series: s.series, volume: s.volume, language: 'ja', src: 'openBD'
+      year: String(s.pubdate || '').slice(0, 4), cover: s.cover, series: s.series, volume: s.volume, language: 'ja'
     };
   },
-  /** Busca un ISBN en todas las fuentes y combina los resultados */
-  async lookup(isbn) {
-    const jobs = [Sources.google(isbn), Sources.openLibrary(isbn)];
-    if (isbn.startsWith('9784')) jobs.push(Sources.openBD(isbn));
-    const res = (await Promise.allSettled(jobs)).map(r => r.status === 'fulfilled' ? r.value : null).filter(Boolean);
-    if (!res.length) return null;
+  /** Mini-servidor propio (Cloudflare Worker): Hardcover, UPCitemdb y Google con clave del servidor */
+  async proxy(code) {
+    const base = proxyBase(); if (!base) return [];
+    try {
+      const r = await fetchT(`${base}/lookup?code=${encodeURIComponent(code)}`, 15000);
+      if (!r.ok) throw new SrcError(r.status, (await r.text()).slice(0, 120));
+      const d = await r.json();
+      return (d.sources || []).map(s => ({ ...s, detail: s.status === 'error' ? explainErr(Object.assign(new Error(s.detail || ''), { http: s.http })) : s.detail, via: 'servidor' }));
+    } catch (e) { return [{ name: 'Mi servidor (Cloudflare)', status: 'error', detail: explainErr(e) }]; }
+  },
+  /** Consulta todas las fuentes en paralelo. Devuelve {meta, report} */
+  async lookup(code) {
+    const isbn = ISBN.parse(code);
+    const jobs = [];
+    if (isbn) {
+      jobs.push(runSrc('Google Books', () => Sources.google(isbn)));
+      jobs.push(runSrc('Open Library', () => Sources.openLibrary(isbn)));
+      if (isbn.startsWith('9784')) jobs.push(runSrc('openBD (Japón)', () => Sources.openBD(isbn)));
+    }
+    jobs.push(Sources.proxy(isbn || code));
+    const report = (await Promise.all(jobs)).flat();
+    // Si el servidor ya consultó Google con su propia clave, no dupliques el error del navegador
+    const srvGoogle = report.find(r => r.name === 'Google Books' && r.via === 'servidor');
+    const report2 = srvGoogle ? report.filter(r => !(r.name === 'Google Books' && !r.via && srvGoogle.status === 'ok')) : report;
+    const order = ['Google Books', 'Hardcover', 'Open Library', 'UPCitemdb', 'openBD (Japón)'];
+    const res = report2.filter(r => r.status === 'ok').sort((a, b) => order.indexOf(a.name) - order.indexOf(b.name)).map(r => ({ ...r.data, src: r.name }));
+    if (!res.length) return { meta: null, report: report2 };
     const pick = k => { for (const r of res) { const v = r[k]; if (Array.isArray(v) ? v.length : v) return v; } return undefined; };
     const out = {
       title: pick('title'), subtitle: pick('subtitle'), authors: pick('authors') || [], publisher: pick('publisher'),
       year: pick('year'), pages: pick('pages'), categories: [...new Set(res.flatMap(r => r.categories || []))].slice(0, 6),
       language: pick('language'), description: pick('description'), series: pick('series'), volume: pick('volume'),
-      source: res.map(r => r.src).join(' + ')
+      source: [...new Set(res.map(r => r.src))].join(' + ')
     };
-    // Portada: Open Library grande > Google > openBD > OL por ISBN
-    const ol = res.find(r => r.src === 'Open Library'), gb = res.find(r => r.src === 'Google Books'), bd = res.find(r => r.src === 'openBD');
-    const cands = [ol?.cover, gb?.cover, bd?.cover, `https://covers.openlibrary.org/b/isbn/${isbn}-L.jpg?default=false`].filter(Boolean);
+    if (res[0].src === 'UPCitemdb') out.title = cleanRetailTitle(out.title);
+    const by = n => res.find(r => r.src === n)?.cover;
+    const cands = [by('Open Library'), by('Hardcover'), by('Google Books'), by('openBD (Japón)'), by('UPCitemdb'),
+      isbn ? `https://covers.openlibrary.org/b/isbn/${isbn}-L.jpg?default=false` : ''].filter(Boolean);
     for (const c of cands) { if (await imgOK(c)) { out.cover = c; break; } }
     out.type = guessType(out);
-    return out;
+    return { meta: out, report: report2 };
   },
   /** Búsqueda por texto */
   async searchGoogle(q) {
-    const key = S.settings.gbKey ? `&key=${encodeURIComponent(S.settings.gbKey)}` : '';
-    const d = await getJSON(`https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(q)}&maxResults=20${key}`);
+    const d = await Sources.gbFetch(encodeURIComponent(q), '&maxResults=20');
     return (d.items || []).map(i => Sources.gbMap(i.volumeInfo));
   },
   async searchOL(q) {
@@ -586,7 +640,7 @@ const Sources = {
     if (!S.settings.cvKey) throw new Error('nokey');
     const fl = 'id,name,image,publisher,start_year,resource_type,volume,issue_number,cover_date,deck,count_of_issues';
     const d = await jsonp(`https://comicvine.gamespot.com/api/search/?api_key=${encodeURIComponent(S.settings.cvKey)}&format=jsonp&resources=volume,issue&limit=20&field_list=${fl}&query=${encodeURIComponent(q)}`, 'json_callback');
-    if (d.error && d.error !== 'OK') throw new Error(d.error);
+    if (d.status_code && d.status_code !== 1) throw new SrcError('CV-' + d.status_code, d.error);
     return (d.results || []).map(r => r.resource_type === 'issue' ? {
       title: (r.volume?.name || '') + (r.issue_number ? ` #${r.issue_number}` : '') + (r.name ? ` — ${r.name}` : ''),
       series: r.volume?.name, volume: r.issue_number, year: String(r.cover_date || '').slice(0, 4),
@@ -598,6 +652,18 @@ const Sources = {
     });
   }
 };
+/** Reporte legible por fuente */
+function reportHTML(report) {
+  const icon = { ok: '✅', notfound: '➖', error: '⚠️', skip: '⏸' };
+  const txt = { ok: 'Lo encontró', notfound: 'No lo tiene', error: 'Falló', skip: 'Sin configurar' };
+  return `<div class="stack" style="gap:4px;margin-top:6px">${report.map(r => `<div class="small">${icon[r.status] || '•'} <b>${esc(r.name)}</b>${r.via ? ' <span class="muted">(servidor)</span>' : ''}: ${txt[r.status] || r.status}${r.status === 'ok' && r.data?.title ? ' — «' + esc(r.data.title) + '»' : ''}${r.detail ? ' — ' + esc(r.detail) : ''}${r.ms != null ? ` <span class="muted">· ${r.ms} ms</span>` : ''}</div>`).join('')}</div>`;
+}
+function reportHint(report) {
+  const g = report.find(r => r.name === 'Google Books');
+  if (g?.status === 'error' && !S.settings.gbKey) return '<br><b>Google Books está bloqueando las consultas sin clave.</b> Pega tu clave gratuita en Ajustes → Fuentes y vuelve a intentar.';
+  if (!proxyBase()) return '<br>Para buscar en más bases (Hardcover y UPCitemdb, que también tiene cómics) conecta tu servidor gratuito en Ajustes → Fuentes.';
+  return '';
+}
 function stripHtml(h) { const d = document.createElement('div'); d.innerHTML = h; return d.textContent || ''; }
 function guessType(m) {
   const txt = norm([...(m.categories || []), m.title, m.publisher].join(' '));
@@ -761,16 +827,17 @@ async function processCode(raw) {
     const ok = await confirmBox(`Ya tienes «${d.title}» en ${l ? l.icon + ' ' + l.name : 'tu colección'}.`, '¿Agregar otro ejemplar?', 'Agregar', 'Ver el que tengo');
     if (!ok) { openDetail(d.id); return; }
   }
-  if (!isbn) {
-    openForm({ isbn: code, type: 'comic' }, { notice: `El código <b>${esc(code)}</b> no es un ISBN (parece un UPC/EAN, típico de cómics sueltos). Búscalo por título en Comic Vine o captúralo a mano.`, noticeKind: 'warn', openSearch: true, searchSrc: S.settings.cvKey ? 'cv' : 'gb' });
+  if (!isbn && !proxyBase()) {
+    openForm({ isbn: code, type: 'comic' }, { notice: `El código <b>${esc(code)}</b> no es un ISBN (parece un UPC/EAN, típico de cómics sueltos). Búscalo por título abajo o captúralo a mano.${reportHint([])}`, noticeKind: 'warn', openSearch: true });
     return;
   }
-  showLoading(`Buscando ISBN ${isbn}…`);
-  let meta = null;
-  try { meta = await Sources.lookup(isbn); } catch { }
+  showLoading(`Buscando ${isbn ? 'ISBN ' + isbn : 'código ' + code}…`);
+  let r = { meta: null, report: [] };
+  try { r = await Sources.lookup(isbn || code); } catch (e) { r.report = [{ name: 'App', status: 'error', detail: explainErr(e) }]; }
   closeLayer();
-  if (meta && meta.title) openForm({ ...meta, isbn }, { notice: `Datos encontrados en ${esc(meta.source)}. Revisa y guarda.`, noticeKind: 'ok' });
-  else openForm({ isbn }, { notice: `No encontré el ISBN <b>${isbn}</b> en las bases gratuitas. Busca por título o captura los datos a mano.`, noticeKind: 'warn', openSearch: true });
+  const why = `<details style="margin-top:6px"><summary style="cursor:pointer;font-weight:600">Qué respondió cada base</summary>${reportHTML(r.report)}</details>`;
+  if (r.meta && r.meta.title) openForm({ ...r.meta, isbn: isbn || code }, { notice: `Datos encontrados en ${esc(r.meta.source)}. Revisa y guarda.${why}`, noticeKind: 'ok' });
+  else openForm({ isbn: isbn || code, type: isbn ? undefined : 'comic' }, { notice: `No encontré <b>${esc(isbn || code)}</b>. Busca por título o captura los datos a mano.${reportHint(r.report)}${why}`, noticeKind: 'warn', openSearch: true });
 }
 
 async function burstAdd(raw) {
@@ -781,8 +848,8 @@ async function burstAdd(raw) {
   const set = (img, t, s) => { row.innerHTML = `${img ? `<img src="${esc(img)}" alt="" referrerpolicy="no-referrer" onerror="this.style.visibility='hidden'">` : '<div class="noimg"></div>'}<div class="grow"><div class="t">${esc(t)}</div><div class="s">${s}</div></div>`; };
   const code = ISBN.clean(raw); const isbn = ISBN.parse(code);
   if (findByCode(code).length) { set('', findByCode(code)[0].title, '⚠ Ya estaba en tu colección (omitido)'); return; }
-  let meta = null;
-  if (isbn) { try { meta = await Sources.lookup(isbn); } catch { } }
+  let meta = null, report = [];
+  if (isbn || proxyBase()) { try { ({ meta, report } = await Sources.lookup(isbn || code)); } catch { } }
   const now = Date.now();
   const it = {
     id: uid(), isbn: isbn || code, libraryId: currentAddLib(), status: 'pendiente', addedAt: now, rating: 0,
@@ -793,7 +860,8 @@ async function burstAdd(raw) {
   };
   await saveItem(it);
   Scanner.burstCount = (Scanner.burstCount || 0) + 1;
-  set(it.cover, it.title, it.incomplete ? '✗ Sin datos — guardado como <b>Por completar</b>' : `✓ Guardado · ${esc(it.authors.join(', '))}`);
+  const fail = report.filter(x => x.status === 'error').map(x => x.name).join(', ');
+  set(it.cover, it.title, it.incomplete ? `✗ Sin datos — guardado como <b>Por completar</b>${fail ? ' · falló: ' + esc(fail) : ''}` : `✓ Guardado · ${esc(it.authors.join(', '))}`);
 }
 
 /* =====================================================================
@@ -890,11 +958,6 @@ function openForm(data = {}, opts = {}) {
       <summary>🔎 Autocompletar buscando por título</summary>
       <div class="row" style="margin-top:8px">
         <input id="sq" class="grow" style="width:auto" placeholder="Título, autor o serie" value="${esc(opts.query || '')}">
-        <select id="ssrc" style="width:auto">
-          <option value="gb" ${opts.searchSrc === 'gb' ? 'selected' : ''}>Google Books</option>
-          <option value="ol">Open Library</option>
-          <option value="cv" ${opts.searchSrc === 'cv' ? 'selected' : ''}>Comic Vine</option>
-        </select>
         <button class="btn sm" id="sgo">Buscar</button>
       </div>
       <div class="results" id="sres"></div>
@@ -964,22 +1027,39 @@ function openForm(data = {}, opts = {}) {
   });
   const refreshCover = () => { $('#fcov', el).innerHTML = coverHTML({ title: form.title.value, authors: splitList(form.authors.value), cover: formCover }); };
   form.title.addEventListener('input', () => { if (!formCover) refreshCover(); });
-  // búsqueda por título
-  let searchResults = [];
+  // búsqueda por título: consulta las tres bases a la vez y muestra la primera que responda con resultados
+  let searchResults = [], searchRun = 0;
+  const SEARCHERS = [['Google Books', q => Sources.searchGoogle(q)], ['Open Library', q => Sources.searchOL(q)], ['Comic Vine', q => Sources.searchCV(q)]];
   const doSearch = async () => {
-    const q = $('#sq', el).value.trim(); const src = $('#ssrc', el).value; const box = $('#sres', el);
+    const q = $('#sq', el).value.trim(); const box = $('#sres', el);
     if (!q) return;
-    box.innerHTML = '<div class="spinner"></div>';
-    try {
-      searchResults = src === 'cv' ? await Sources.searchCV(q) : src === 'ol' ? await Sources.searchOL(q) : await Sources.searchGoogle(q);
-      box.innerHTML = searchResults.length ? searchResults.map((r, i) => `<div class="res" data-i="${i}">${r.cover ? `<img src="${esc(r.cover)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.style.visibility='hidden'">` : '<div class="noimg"></div>'}
-        <div class="grow"><div class="t">${esc(r.title)}</div><div class="s">${esc([(r.authors || []).join(', '), r.publisher, r.year, r.extra, r.isbn].filter(Boolean).join(' · '))}</div></div></div>`).join('')
-        : '<p class="small muted">Sin resultados. Prueba con menos palabras u otra fuente.</p>';
-    } catch (err) {
-      box.innerHTML = err.message === 'nokey'
-        ? '<div class="notice info">Para Comic Vine necesitas tu clave gratuita. Pégala en <b>Ajustes → Claves de API</b>.</div>'
-        : `<div class="notice">No se pudo consultar (${esc(err.message)}). ${src === 'gb' ? 'Google limita las consultas sin clave; prueba Open Library o agrega tu clave en Ajustes.' : 'Intenta de nuevo.'}</div>`;
-    }
+    const run = ++searchRun;
+    const st = SEARCHERS.map(([name]) => ({ name, status: 'pending', results: [] }));
+    let shown = null;
+    const listHTML = arr => arr.map((r, i) => `<div class="res" data-i="${i}">${r.cover ? `<img src="${esc(r.cover)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.style.visibility='hidden'">` : '<div class="noimg"></div>'}
+        <div class="grow"><div class="t">${esc(r.title)}</div><div class="s">${esc([(r.authors || []).join(', '), r.publisher, r.year, r.extra, r.isbn].filter(Boolean).join(' · '))}</div></div></div>`).join('');
+    const paint = () => {
+      if (run !== searchRun) return;
+      const done = st.every(x => x.status !== 'pending');
+      const lines = st.map(x => {
+        const ic = { pending: '⏳', ok: '✅', notfound: '➖', error: '⚠️', skip: '⏸' }[x.status];
+        const t = x.status === 'pending' ? 'buscando…' : x.status === 'ok' ? `${x.results.length} ${x.results.length === 1 ? "resultado" : "resultados"}${x.name === shown ? ' <b>(mostrando)</b>' : ` — <a href="#" data-show="${x.name}">ver</a>`}` : x.status === 'notfound' ? 'sin resultados' : esc(x.detail);
+        return `<div class="small">${ic} <b>${x.name}</b>: ${t}</div>`;
+      }).join('');
+      let head = '';
+      if (!shown && !done) head = '<div class="spinner" style="width:30px;height:30px;margin:10px auto"></div>';
+      if (!shown && done) head = `<div class="notice">Ninguna base encontró «${esc(q)}». Prueba con menos palabras (solo el título o el autor) o captúralo a mano.</div>`;
+      box.innerHTML = `${head}<div class="stack" style="gap:3px;margin:6px 2px">${lines}</div>${shown ? listHTML(searchResults) : ''}`;
+    };
+    paint();
+    await Promise.all(SEARCHERS.map(async ([name, fn], i) => {
+      try { const res = await fn(q); st[i] = { name, status: res.length ? 'ok' : 'notfound', results: res }; }
+      catch (err) { st[i] = { name, status: err.message === 'nokey' ? 'skip' : 'error', results: [], detail: err.message === 'nokey' ? 'Error SIN-CLAVE · Falta tu clave de Comic Vine en Ajustes' : explainErr(err) }; }
+      if (run !== searchRun) return;
+      if (!shown && st[i].results.length) { shown = name; searchResults = st[i].results; }
+      paint();
+    }));
+    box.onclick = e => { const a = e.target.closest('[data-show]'); if (!a) return; e.preventDefault(); const x = st.find(y => y.name === a.dataset.show); shown = x.name; searchResults = x.results; paint(); };
   };
   $('#sgo', el).onclick = doSearch; $('#sq', el).addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); doSearch(); } });
   if (opts.openSearch && opts.query) doSearch();
@@ -1132,6 +1212,7 @@ function renderColeccion() {
       </div>
       <div class="row" style="justify-content:flex-end;margin-top:10px"><button class="btn ghost sm" data-action="clearFilters">Limpiar filtros</button></div>
     </div>
+    ${!S.settings.gbKey && !proxyBase() ? `<div class="notice info" style="margin-bottom:10px">Para que el escáner encuentre la mayoría de tus libros, conecta Google Books con tu clave gratuita (3 min). <button class="btn sm" data-action="gofuentes" style="margin-left:6px">Configurar</button></div>` : ''}
     <div class="count">${items.length} ${items.length === 1 ? 'título' : 'títulos'}</div>
     ${items.length ? (S.layout === 'grid' ? `<div class="grid">${items.map(cardHTML).join('')}</div>` : `<div class="list">${items.map(rowHTML).join('')}</div>`)
       : `<div class="glass empty"><div class="big">📚</div><h3>${S.items.length ? 'Nada coincide con los filtros' : 'Tu estante está vacío'}</h3>
@@ -1300,6 +1381,29 @@ function renderAjustes() {
   const st = S.settings;
   return `<h2 class="title">Ajustes</h2>
   <div class="stack">
+    <div class="glass pad stack" id="fuentes">
+      <h3>1 · Google Books (la base más grande; necesita tu clave)</h3>
+      <p class="small" style="margin:0">Sin clave, Google comparte un límite de consultas con todo el mundo y suele rechazarlas. Con tu clave gratuita las consultas cuentan solo para ti.</p>
+      <label class="f">Clave de Google Books <input data-set="gbKey" value="${esc(st.gbKey)}" placeholder="AIza…" autocomplete="off"></label>
+      <p class="small muted" style="margin:-4px 0 0">Créala en <a href="https://console.cloud.google.com/apis/library/books.googleapis.com" target="_blank" rel="noopener">Google Cloud Console → Books API</a>: Habilitar → Credenciales → Crear clave de API. Los pasos detallados vienen en el LEEME.</p>
+    </div>
+    <div class="glass pad stack">
+      <h3>2 · Tu servidor gratuito (más bases: Hardcover y UPCitemdb)</h3>
+      <p class="small" style="margin:0">Hardcover (libros) y UPCitemdb (códigos de barras de tiendas, incluye cómics) no permiten consultas directas desde una app web. Tu propio Cloudflare Worker, gratis, las consulta por ti.</p>
+      <label class="f">URL de tu Worker <input data-set="proxyUrl" value="${esc(st.proxyUrl)}" placeholder="https://estante-proxy.TU-USUARIO.workers.dev" autocomplete="off"></label>
+      <div class="row"><button class="btn ghost sm" data-action="ping">Probar conexión</button><span class="small" id="pingOut"></span></div>
+    </div>
+    <div class="glass pad stack">
+      <h3>3 · Comic Vine (cómics por título)</h3>
+      <label class="f">Clave de Comic Vine <input data-set="cvKey" value="${esc(st.cvKey)}" placeholder="Pega tu API key" autocomplete="off"></label>
+      <p class="small muted" style="margin:-4px 0 0">Gratis en <a href="https://comicvine.gamespot.com/api/" target="_blank" rel="noopener">comicvine.gamespot.com/api</a>.</p>
+    </div>
+    <div class="glass pad stack">
+      <h3>Diagnóstico: ¿qué base encuentra este libro?</h3>
+      <p class="small muted" style="margin:0">Escribe el ISBN de un libro que no encontró y verás la respuesta de cada base.</p>
+      <div class="row"><input id="diagIn" class="grow" style="width:auto" inputmode="numeric" placeholder="978…"><button class="btn sm" data-action="diag">Probar</button></div>
+      <div id="diagOut"></div>
+    </div>
     <div class="glass pad stack">
       <h3>Respaldo y paso entre celular y PC</h3>
       <p class="small muted" style="margin:0">Tus datos viven en este dispositivo. Para tener la misma colección en el celular y la PC, exporta aquí e importa allá: la importación combina ambos lados y conserva la versión más reciente de cada título.</p>
@@ -1311,22 +1415,11 @@ function renderAjustes() {
       <p class="small muted" style="margin:0" id="storageInfo"></p>
     </div>
     <div class="glass pad stack">
-      <h3>Claves de API (opcionales y gratuitas)</h3>
-      <label class="f">Comic Vine — para buscar cómics por título <input data-set="cvKey" value="${esc(st.cvKey)}" placeholder="Pega tu API key"></label>
-      <p class="small muted" style="margin:-4px 0 0">Créala gratis en <a href="https://comicvine.gamespot.com/api/" target="_blank" rel="noopener">comicvine.gamespot.com/api</a> (requiere cuenta).</p>
-      <label class="f">Google Books — evita el límite de consultas sin clave <input data-set="gbKey" value="${esc(st.gbKey)}" placeholder="Pega tu API key"></label>
-      <p class="small muted" style="margin:-4px 0 0">En <a href="https://console.cloud.google.com/apis/library/books.googleapis.com" target="_blank" rel="noopener">Google Cloud Console</a>: habilita "Books API" y crea una clave. Sin ella también funciona, pero Google puede rechazar consultas en horas pico; Open Library sigue respondiendo.</p>
-    </div>
-    <div class="glass pad stack">
       <h3>Preferencias</h3>
       <div class="grid2">
         <label class="f">Tipo por defecto<select data-set="defaultType">${Object.entries(TYPES).map(([k, v]) => `<option value="${k}" ${st.defaultType === k ? 'selected' : ''}>${v}</option>`).join('')}</select></label>
         <label class="f">Biblioteca al escanear<select data-set="defaultLib"><option value="">La que tenga seleccionada</option>${S.libs.map(l => `<option value="${l.id}" ${st.defaultLib === l.id ? 'selected' : ''}>${esc(l.icon + ' ' + l.name)}</option>`).join('')}</select></label>
       </div>
-    </div>
-    <div class="glass pad stack">
-      <h3>Fuentes de datos</h3>
-      <p class="small" style="margin:0">ISBN → <b>Google Books</b> + <b>Open Library</b> en paralelo (y <b>openBD</b> para ediciones japonesas 978-4). Portadas de Open Library Covers y Google. Cómics por título → <b>Comic Vine</b>. Todo gratuito.</p>
     </div>
     <div class="glass pad stack">
       <h3>Zona de cuidado</h3>
@@ -1428,6 +1521,25 @@ document.addEventListener('click', async e => {
   if (a === 'export') exportJSON();
   if (a === 'csv') exportCSV();
   if (a === 'import') $('#fileImport').click();
+  if (a === 'diag') {
+    const v = ISBN.clean($('#diagIn').value); const out = $('#diagOut');
+    if (v.length < 8) { toast('Escribe un ISBN o código'); return; }
+    out.innerHTML = '<div class="spinner"></div>';
+    const r = await Sources.lookup(ISBN.parse(v) || v);
+    out.innerHTML = `<div class="notice ${r.meta ? 'ok' : ''}">${r.meta ? `Resultado combinado: <b>${esc(r.meta.title)}</b> — ${esc((r.meta.authors || []).join(', '))}` : 'Ninguna base lo encontró.'}${reportHTML(r.report)}${r.meta ? '' : reportHint(r.report)}</div>`;
+    return;
+  }
+  if (a === 'ping') {
+    const out = $('#pingOut'); const base = proxyBase();
+    if (!base) { out.textContent = 'Primero pega la URL de tu Worker.'; return; }
+    out.textContent = 'Probando…';
+    try {
+      const r = await fetchT(base + '/ping', 10000); const d = await r.json();
+      out.innerHTML = `✅ Conectado · Hardcover: ${d.hardcover ? '✓' : '✗ sin token'} · Google (servidor): ${d.google ? '✓' : '— (usa la clave de arriba)'} · UPCitemdb: ✓`;
+    } catch (e) { out.textContent = '⚠️ No responde: ' + explainErr(e) + ' Revisa la URL y que el Worker esté desplegado.'; }
+    return;
+  }
+  if (a === 'gofuentes') { go('ajustes'); setTimeout(() => $('#fuentes')?.scrollIntoView({ behavior: 'smooth' }), 50); return; }
   if (a === 'wipe') {
     if (!await confirmBox('¿Borrar TODA la colección de este dispositivo?', 'No se puede deshacer. Exporta un respaldo antes si lo necesitas.', 'Borrar todo', 'Cancelar', true)) return;
     await DB.clear('items'); S.items = []; toast('Colección borrada'); render();
@@ -1438,7 +1550,7 @@ document.addEventListener('input', e => {
 });
 document.addEventListener('change', e => {
   const f = e.target.dataset.f; if (f) { S.f[f] = f === 'minRating' ? +e.target.value : e.target.value; saveFilters(); render(); return; }
-  const s = e.target.dataset.set; if (s) { S.settings[s] = e.target.value.trim(); LS.set('settings', S.settings); Scanner.updateTarget(); toast('Guardado', 1200); }
+  const s = e.target.dataset.set; if (s) { S.settings[s] = e.target.value.trim(); LS.set('settings', S.settings); Scanner.updateTarget(); toast('Guardado ✓', 1200); }
 });
 document.addEventListener('keydown', e => { if (e.key === 'Escape') { if ($('#scanner')) Scanner.close(); else closeLayer(); } });
 window.addEventListener('hashchange', () => { const v = location.hash.slice(1); if (['coleccion', 'stats', 'libs', 'ajustes'].includes(v) && v !== S.view) { S.view = v; render(); } });

@@ -1,44 +1,66 @@
-# Estante · Instalación
+# Estante · Instalación y fuentes de datos
 
-App web instalable (PWA): el mismo código funciona como app en Android y como app de escritorio en Windows, Mac o Linux.
-Para que la cámara funcione, la app tiene que abrirse desde una dirección **https**. GitHub Pages te da una gratis.
+App web instalable (PWA): el mismo código funciona en Android y en la PC.
+Ya está publicada en https://stroop99.github.io/Estante/
 
-## 1. Publicarla en GitHub Pages (una sola vez, ~5 min)
+## Actualizar a esta versión
 
-1. Crea una cuenta en https://github.com si no tienes.
-2. Arriba a la derecha: **+ → New repository** → nombre `estante` → **Public** → *Create repository*.
-3. En la página del repo: **uploading an existing file** → arrastra **todo el contenido** de esta carpeta
-   (`index.html`, `sw.js`, `manifest.webmanifest`, las carpetas `icons/` y `vendor/`) → *Commit changes*.
-4. **Settings → Pages** → *Source: Deploy from a branch* → Branch `main`, carpeta `/ (root)` → *Save*.
-5. En 1–2 minutos queda en: `https://TU-USUARIO.github.io/estante/`
+1. En github.com/Stroop99/Estante entra a **Add file → Upload files**.
+2. Arrastra `index.html`, `sw.js`, `worker.js` y `LEEME.md` → **Commit changes**. Los archivos con el mismo nombre se reemplazan.
+3. Espera 1 o 2 minutos y abre la app con internet. La versión nueva carga sola.
 
-Tus libros **no** se suben a GitHub: solo el código. Los datos se guardan en cada dispositivo.
+---
 
-## 2. Instalar en Android
+## Paso 1 · Clave de Google Books (lo más importante, ~3 min)
 
-1. Abre la dirección en **Chrome**.
-2. Menú ⋮ → **Agregar a pantalla principal → Instalar**.
-3. La primera vez que escanees, acepta el permiso de cámara.
-   Si mantienes presionado el ícono aparece el atajo **Escanear**.
+Sin clave, Google comparte un límite de consultas con todo el mundo y casi siempre lo rechaza. Esa era la causa de que no encontrara nada.
 
-## 3. Instalar en la PC
+1. Entra a https://console.cloud.google.com con tu cuenta de Google y acepta los términos.
+2. Arriba, en el selector de proyecto, elige **Nuevo proyecto** → nombre `Estante` → **Crear**.
+3. Abre https://console.cloud.google.com/apis/library/books.googleapis.com → **Habilitar**.
+4. Ve a **APIs y servicios → Credenciales → + Crear credenciales → Clave de API**. Copia la clave (empieza con `AIza…`).
+5. En esa misma clave entra a **Editar clave de API**:
+   - *Restricciones de aplicaciones* → **Sitios web** → agrega `https://stroop99.github.io/*`
+   - *Restricciones de API* → **Restringir clave** → marca solo **Books API** → **Guardar**.
+6. En la app, abre **Ajustes → 1 · Google Books** y pega la clave.
 
-1. Abre la misma dirección en **Chrome** o **Edge**.
-2. Usa el ícono de instalar ⊕ en la barra de direcciones (o Menú → *Instalar Estante*).
-3. Se abre en su propia ventana y queda en el menú Inicio o en el Dock.
-   Sin webcam usa **Agregar → Foto del código**: sube una foto del código de barras que tomaste con el celular.
+La restricción del paso 5 hace que nadie más pueda usar tu clave aunque la vea.
 
-## 4. Pasar la colección entre el celular y la PC
+## Paso 2 · Tu servidor gratuito para más bases (opcional, ~10 min)
 
-**Ajustes → Exportar respaldo** genera un `.json` que puedes mandarte por Drive, WhatsApp o correo.
-En el otro dispositivo usa **Ajustes → Importar / combinar**.
-Al combinar se conserva la versión más reciente de cada título, y las bibliotecas que tengan el mismo nombre se juntan en una sola.
+Hardcover (libros) y UPCitemdb (códigos de barras de tiendas, incluye cómics) no aceptan consultas directas desde una app web.
+Un Cloudflare Worker, gratis, las hace por ti.
 
-## 5. Claves opcionales (gratis)
+**a) Token de Hardcover**
+1. Crea una cuenta en https://hardcover.app.
+2. Abre https://hardcover.app/account/api y copia el token.
 
-- **Comic Vine** sirve para buscar cómics por título. Crea una cuenta en comicvine.gamespot.com, entra a `/api`, copia tu key y pégala en Ajustes.
-- **Google Books** solo sirve para evitar el límite de consultas sin clave. En Google Cloud Console habilita *Books API*, crea una *API key* y pégala en Ajustes.
+**b) Crear el Worker**
+1. Crea una cuenta gratis en https://dash.cloudflare.com.
+2. Ve a **Workers y Pages → Crear → Worker → "Hello World"**, ponle de nombre `estante-proxy` y presiona **Desplegar**.
+3. Presiona **Editar código**, borra todo lo que hay, pega el contenido completo de `worker.js` y presiona **Desplegar**.
+4. En el Worker ve a **Configuración → Variables y secretos → Agregar**:
+   - Tipo **Secreto**, nombre `HARDCOVER_TOKEN`, valor: tu token de Hardcover → **Desplegar**.
+5. Copia la URL del Worker. Se ve así: `https://estante-proxy.TU-USUARIO.workers.dev`
+6. En la app, abre **Ajustes → 2 · Tu servidor**, pega la URL y presiona **Probar conexión**. Debe decir ✅ Conectado · Hardcover ✓.
 
-## Actualizar la app
+## Paso 3 · Comic Vine (opcional)
 
-Sube los archivos nuevos al repo, encima de los anteriores. La app se actualiza sola la siguiente vez que la abras con internet.
+Sirve para buscar cómics por título.
+1. Crea una cuenta en https://comicvine.gamespot.com/api/ y copia tu clave.
+2. Pégala en **Ajustes → 3 · Comic Vine**.
+
+## Diagnóstico
+
+Si un libro no aparece, entra a **Ajustes → Diagnóstico** y escribe su ISBN.
+Verás la respuesta de cada base: lo encontró, no lo tiene, o falló y por qué (clave, límite de consultas, conexión).
+La misma información aparece en el aviso de "No encontré", en *Qué respondió cada base*.
+
+## Instalar
+
+- **Android:** abre el link en Chrome → Menú ⋮ → **Agregar a pantalla principal → Instalar**.
+- **PC:** abre el link en Chrome o Edge → ícono ⊕ en la barra de direcciones → **Instalar**.
+
+## Pasar la colección entre celular y PC
+
+En un dispositivo usa **Ajustes → Exportar respaldo**. En el otro usa **Ajustes → Importar / combinar**.
